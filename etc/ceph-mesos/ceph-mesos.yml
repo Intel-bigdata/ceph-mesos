@@ -1,0 +1,7 @@
+id:        ceph
+role:      "*"
+master:    master.mesos:5050
+zookeeper: zk://master.mesos:2181
+restport:  8889
+fileport:  8888
+fileroot:  ./
