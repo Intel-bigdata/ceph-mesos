@@ -64,6 +64,9 @@ public:
       case Status::STAGING:
         status = "STAGING";
         break;
+      case Status::WAITING_OSDID:
+        status = "WAITING_OSDID";
+        break;
       case Status::STARTING:
         status = "STARTING";
         break;

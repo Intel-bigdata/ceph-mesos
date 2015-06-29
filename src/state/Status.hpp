@@ -24,6 +24,7 @@ namespace ceph{
 enum class Status : int
 {
   STAGING = 0,
+  WAITING_OSDID,
   STARTING,
   RUNNING,
   FAILED,
