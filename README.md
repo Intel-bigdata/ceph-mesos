@@ -7,8 +7,8 @@ For now, it can only:
 
 Prerequisites
 --------------------------
-1. A Mesos cluster with Docker installed (of course, buddy!). We only support CentOS 7 distribution at present. So at least <b><em>5</em></b> slaves at present.
-2. Slaves in Mesos have networking to download Docker images
+1. A Mesos cluster with Docker installed (duh). We only support CentOS 7 distribution at present and requires at least <b><em>5</em></b> slaves.
+2. Slaves in Mesos have network connection to download Docker images
 3. install libmicrohttpd in all slaves.
 ```sh
 yum -y install libmicrohttpd
@@ -23,7 +23,7 @@ sudo yum install -y epel-release
 sudo yum groupinstall -y "Development Tools"
 sudo yum install -y cmake mesos protobuf-devel boost-devel gflags-devel glog-devel yaml-cpp-devel  jsoncpp-devel libmicrohttpd-devel zeromq3-devel gmock-devel gtest-devel
 ```
-Then clone ceph-mesos and build
+Then clone ceph-mesos and build.
 ```sh
 git clone 
 cd ceph-mesos
@@ -47,7 +47,7 @@ And start ceph-mesos using below command:
 ```
 You can check the Mesos web console to see your ceph cluster now. After about 10 mins(depend on your network speed), you'll see 5 active tasks running there.
 
-**NOTE:** At present, if "ceph-meos" (the scheduler) stops, all containers will be removed. And restart "ceph-mesos" will clear your data( in slave's "~/ceph_config_root" which is bind-mounted by Docker container) and start a new ceph cluster. We will improve this in the near future.
+**NOTE:** Currently, if "ceph-meos" (the scheduler) stops, all containers will be removed. And restart "ceph-mesos" will clear your data( in slave's "~/ceph_config_root" which is bind-mounted by Docker container) and start a new ceph cluster. We will improve this in the near future.
 
 Launch new OSD(s)
 --------------------------
@@ -56,15 +56,15 @@ ceph-mesos can accept json format request and start new OSD(s) if there are avai
 curl -d '{"instances":2,"profile":"osd"}' http://ceph_scheduler_host:8889
 ```
 
-Play with ceph cluster
+Verify your Ceph cluster
 --------------------------
-At present, you can ssh to a Mesos slave with ceph-mesos task running and use docker command to play with ceph.
+You can ssh to a Mesos slave running a ceph-mesos task and execute docker commands.
 ```sh
 #you'll probably see a osd0 container running
 docker ps -a 
 docker exec osd0 ceph -s
 ```
-Now you can play with the ceph cluster like that!
+Now you can verify your Ceph cluster!
 
 
 [ceph-docker]: https://github.com/ceph/ceph-docker
