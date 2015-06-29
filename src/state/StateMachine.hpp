@@ -52,6 +52,8 @@ public:
 
   void updateTaskToRunning(string taskId);
 
+  void updateTaskToWaitingOSDID(string taskId);
+
   void updateTaskToStarting(string taskId);
 
   void updateTaskToFailed(string taskId);

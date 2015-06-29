@@ -110,8 +110,8 @@ void CephScheduler::statusUpdate(
       }
     }
   } else if (status.state() == TASK_STARTING) {
-    LOG(INFO) << taskId << " is Starting, ready for osd id!";
-    stateMachine->updateTaskToStarting(taskId);
+    LOG(INFO) << taskId << " is Waiting OSDID, ready for assign osd id!";
+    stateMachine->updateTaskToWaitingOSDID(taskId);
   } else if (status.state() == TASK_FAILED) {
     LOG(INFO) << taskId << " failed";
     stateMachine->updateTaskToFailed(taskId);
@@ -155,7 +155,7 @@ void CephScheduler::resourceOffers(
       driver->declineOffer(offer.id());
       continue;
     }
-    LOG(INFO) << "Check offer from " <<offer.hostname();
+    LOG(INFO) << "Check offer's resources from " <<offer.hostname();
     if (offerNotEnoughResources(offer,taskType)) {
       LOG(INFO) << "Not enough, decline it from " << offer.hostname();
       driver->declineOffer(offer.id());
@@ -171,7 +171,7 @@ void CephScheduler::resourceOffers(
       }
     }
 
-    LOG(INFO) << "Accepted offer " << offer.id() << ", launch "
+    LOG(INFO) << "Accepted offer from" << offer.hostname() << ", launch "
         << static_cast<int>(taskType) <<":" << token << " node";
     if (taskType == TaskType::MON && token == 0) {
         LOG(INFO) << "This is the initial MON";
@@ -307,8 +307,11 @@ void CephScheduler::handleWaitingOSDTasks(SchedulerDriver* driver)
           eId,
           sId,
           m);
-      LOG(INFO) << "Assign: OSD ID " << Id << "to this task: ";
+      LOG(INFO) << "Assign: OSD ID " << Id << " to this task: ";
       LOG(INFO) << taskState.toString();
+      //if set the task to Starting, scheduler will know 
+      //it has assigned OSDID to it
+      stateMachine->updateTaskToStarting(taskState.taskId);
     } else {
       LOG(INFO) << "No OSD ID available!";
       break;
@@ -321,6 +324,7 @@ void CephScheduler::handleWaitingOSDTasks(SchedulerDriver* driver)
 bool CephScheduler::fetchPendingRESTfulRequest()
 {
   //fetch a request gets from REST server
+  LOG(INFO) << "FetchPending requests..";
   vector<int>* OSDRequests = eventLoop->getPendingOSD();
   if (OSDRequests->empty()){
     return false;

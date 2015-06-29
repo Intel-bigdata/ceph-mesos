@@ -171,6 +171,24 @@ void StateMachine::updateTaskToRunning(string taskId)
 
 }
 
+void StateMachine::updateTaskToWaitingOSDID(string taskId)
+{
+  auto it = taskMap.find(taskId);
+  if (it != taskMap.end()) {
+    LOG(INFO) << "Update the taskState to WAITING_OSDID for " << taskId;
+    TaskState& taskState = taskMap[taskId];
+    updateCounters(taskState.taskType,
+        taskState.currentStatus,
+        Status::WAITING_OSDID);
+    taskState.currentStatus = Status::WAITING_OSDID;
+    LOG(INFO) << "After update: ";
+    LOG(INFO) << taskState.toString();
+  } else {
+    LOG(ERROR) << "No value found in taskMap with key: " << taskId;
+  }
+
+}
+
 void StateMachine::updateTaskToStarting(string taskId)
 {
   auto it = taskMap.find(taskId);
@@ -186,7 +204,7 @@ void StateMachine::updateTaskToStarting(string taskId)
   } else {
     LOG(ERROR) << "No value found in taskMap with key: " << taskId;
   }
-
+ 
 }
 
 void StateMachine::updateTaskToFailed(string taskId)
@@ -280,7 +298,7 @@ vector<TaskState> StateMachine::getWaitingOSDTask()
   for ( auto it = taskMap.begin(); it != taskMap.end(); it++) {
     taskState = static_cast<TaskState>(it->second);
     if (taskState.taskType == TaskType::OSD
-        && taskState.currentStatus == Status::STARTING){
+        && taskState.currentStatus == Status::WAITING_OSDID){
       vc.push_back(taskState);
     }
   }
