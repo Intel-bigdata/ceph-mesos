@@ -204,7 +204,6 @@ void StateMachine::updateTaskToStarting(string taskId)
   } else {
     LOG(ERROR) << "No value found in taskMap with key: " << taskId;
   }
- 
 }
 
 void StateMachine::updateTaskToFailed(string taskId)
