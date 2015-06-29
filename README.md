@@ -47,6 +47,8 @@ And start ceph-mesos using below command:
 ```
 You can check the Mesos web console to see your ceph cluster now. After about 10 mins(depend on your network speed), you'll see 5 active tasks running there.
 
+**NOTE:** At present, if "ceph-meos" (the scheduler) stops, all containers will be removed. And restart "ceph-mesos" will clear your data( in slave's "~/ceph_config_root" which is bind-mounted by Docker container) and start a new ceph cluster. We will improve this in the near future.
+
 Launch new OSD(s)
 --------------------------
 ceph-mesos can accept json format request and start new OSD(s) if there are available hosts.
