@@ -224,7 +224,7 @@ void StateMachine::updateTaskToFailed(string taskId)
   }
 
 }
-//TODO: fix this bug: when one OSd failed, this will accept next two offer
+
 bool StateMachine::nextMove(TaskType& taskType, int& token, string hostName)
 {
   //check if this host have our deamon
