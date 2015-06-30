@@ -22,6 +22,7 @@
 #include <glog/logging.h>
 #include <boost/lexical_cast.hpp>
 #include <thread>
+#include <time.h>
 
 #include "common/FrameworkMessage.hpp"
 #include "common/StringUtil.hpp"
@@ -174,17 +175,27 @@ string CephExecutor::constructRADOSGWCommand(
 bool CephExecutor::block_until_started(string _containerName, string timeout)
 {
   //TODO: optimize this by while
-  usleep(20*1000000);
-  string cmd = "docker ps |grep " + _containerName + " > /dev/null ;echo $?";
-  string r = runShellCommand(cmd);
-  if (r != "0") {
+  time_t current = time(0);
+  time_t deadline = current + lexical_cast<int>(timeout);
+  //poll the result every 3 seconds until timeout
+  string cmd;
+  string r;
+  while (current < deadline) {
+    cmd = "docker ps |grep " + _containerName + " > /dev/null ;echo $?";
+    r = runShellCommand(cmd);
+    usleep(3*1000000);
+    if ("0" == r) {
+      break;
+    }
+  }
+  if ("0" != r) {
     LOG(INFO) << "Docker container failed to start!";
     return false;
   }
   cmd = "docker exec " + _containerName +
       " timeout "+ timeout + " ceph mon stat > /dev/null 2>&1; echo $?";
   r = runShellCommand(cmd);
-  if (r != "0"){
+  if ("0" != r){
     LOG(INFO) << "Container's ceph daemon failed to start! " << r;
     return false;
   }
@@ -361,7 +372,8 @@ void CephExecutor::launchTask(ExecutorDriver* driver, const TaskInfo& task)
   //set class member localSharedConfDirRoot
   string cmd = "echo ~";
   string r = runShellCommand(cmd);
-  localSharedConfigDirRoot = r == " " ? r :"/root";
+  remove_if(r.begin(), r.end(), isspace);
+  localSharedConfigDirRoot = r == "" ? r :"/root";
   LOG(INFO) << "localSharedConfigDirRoot is " << localSharedConfigDirRoot;
 
   bool needCopyConfig = true;
