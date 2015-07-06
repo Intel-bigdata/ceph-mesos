@@ -5,6 +5,16 @@ For now, it can only:
   - Start 1 mon, 3 osd, 1 radosgw. Each on a slave. Based on [ceph-docker]
   - Accept Restful flexup request for launching a new osd to a new slave
 
+Goal & Roadmap
+--------------------------
+Scaling and monitoring large Ceph cluster in production Mesos environment in an easy way is our goal. And it's in progress. Check below for updates ( Your ideas are welcome ).
+- [ ] Multiple OSDs on one disk
+- [ ] Multiple OSDs on dedicated disks
+- [ ] Journals on dedicated disks
+- [ ] Flexdown OSD
+- [ ] Launch RBD, MDS
+- [ ] TBD
+
 Prerequisites
 --------------------------
 1. A Mesos cluster with Docker installed (duh). We only support CentOS 7 distribution at present and requires at least <b><em>5</em></b> slaves.
