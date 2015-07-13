@@ -26,8 +26,8 @@
 #include <vector>
 #include <exception>
 #include <thread>
-#include <jsoncpp/json/json.h>
 #include <glog/logging.h>
+#include "common/JsonUtil.hpp"
 
 using std::string;
 using std::vector;

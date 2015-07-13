@@ -23,8 +23,7 @@
 #include <sstream>
 #include <iostream>
 #include <zmq.hpp>
-
-#include <jsoncpp/json/json.h>
+#include "common/JsonUtil.hpp"
 
 extern "C"
 {
