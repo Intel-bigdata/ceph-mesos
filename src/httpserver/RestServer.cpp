@@ -20,26 +20,25 @@
 
 string RestServer::jsonCheck(const char* json)
 {
-  Json::Reader reader;
-  Json::Value value;
-  if (reader.parse(json, value)) {
-    int instances = value.get("instances", 0).asInt();
+  JsonUtil jsonRest;
+  if (jsonRest.read(json)) {
+    int instances = jsonRest.instances();
     if (instances<1 || instances>maxInstancesSize){
       return string("[error]:instances");
     }
-  string profile = value.get("profile", "error").asString();
-  if (!(profile == osd || profile == mon)) {
-    return string("[error]:profile");
-  }
-
-  //zmq flexUp sender
-  zmq::socket_t sender(context, ZMQ_PUSH);
-  sender.connect("inproc://flexUp");
-  int len = strlen(json) + 1;
-  zmq::message_t message(len);
-  snprintf((char*)message.data(), len, "%s", json);
-  sender.send(message);
-  return "[success]";
+    string profile = jsonRest.profile();
+    if (!(profile == osd || profile == mon)) {
+      return string("[error]:profile");
+    }
+    
+    //zmq flexUp sender
+    zmq::socket_t sender(context, ZMQ_PUSH);
+    sender.connect("inproc://flexUp");
+    int len = strlen(json) + 1;
+    zmq::message_t message(len);
+    snprintf((char*)message.data(), len, "%s", json);
+    sender.send(message);
+    return "[success]";
   } else {
     return string("[error]:json");
   }

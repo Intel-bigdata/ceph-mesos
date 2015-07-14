@@ -53,13 +53,10 @@ void EventLoop::recvData()
 
 void EventLoop::processData(string data)
 {
-  const char* json = data.c_str();
-  Json::Reader reader;
-  Json::Value value;
-  if (reader.parse(json, value)) {
-    if ("osd" == value["profile"].asString()){
-      if (value["instances"].asInt() != 0){
-        pendingOSD.push_back(value["instances"].asInt());
+  JsonUtil jsonEvent;
+  if (jsonEvent.read(data.c_str())) {
+    if ("osd" == jsonEvent.profile()){
+      pendingOSD.push_back(jsonEvent.instances());
       }
       LOG(INFO) << "pendingOSD flexUp request Num: " << pendingOSD.size();
     } else {
