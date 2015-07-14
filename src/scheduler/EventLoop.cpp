@@ -56,9 +56,7 @@ void EventLoop::processData(string data)
   JsonUtil jsonEvent;
   if (jsonEvent.read(data.c_str())) {
     if ("osd" == jsonEvent.profile()){
-      int instancesNum = jsonEvent.instances();
-      if (instancesNum != 0){
-        pendingOSD.push_back(instancesNum);
+      pendingOSD.push_back(jsonEvent.instances());
       }
       LOG(INFO) << "pendingOSD flexUp request Num: " << pendingOSD.size();
     } else {
