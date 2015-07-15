@@ -117,8 +117,8 @@ set(CEPH_MESOS_EXECUTOR_SOURCES
 
 set(CEPH_MESOS_TEST_SOURCES
     src/tests/main.cpp
-    src/tests/RestServerTest.cpp
-    src/httpserver/RestServer.cpp
+    src/tests/ConfigTest.cpp
+    src/common/Config.cpp
     /usr/src/gmock/gmock-all.cc
 )
 
@@ -137,7 +137,7 @@ target_link_libraries(ceph-mesos
 )
 add_custom_command(TARGET ceph-mesos POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
-    ${CMAKE_SOURCE_DIR}/etc/ceph-mesos/ceph-mesos.yml
+    ${CMAKE_SOURCE_DIR}/etc/cephmesos/cephmesos.yml
     $<TARGET_FILE_DIR:ceph-mesos>
 )
 
@@ -155,13 +155,11 @@ target_link_libraries(ceph-mesos-executor
 add_executable(ceph-mesos-tests ${CEPH_MESOS_TEST_SOURCES})
 target_include_directories(ceph-mesos-tests PUBLIC
     ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/include
 )
 target_link_libraries(ceph-mesos-tests
     ${GTEST_LIB}
-    ${MICROHTTPD_LIB}
-    ${ZMQ_LIB}
-    ${JSONCPP_LIB}
     ${PTHREAD}
+    ${GFLAGS_LIB}
+    ${YAMLCPP_LIB}
 )
-add_test(ceph-mesos-tests ceph-mesos-tests)
+add_test(config-tests ceph-mesos-tests)

@@ -5,3 +5,11 @@ zookeeper: zk://master.mesos:2181
 restport:  8889
 fileport:  8888
 fileroot:  ./
+mgmtdev:   eno1
+datadev:   enp8s0f0
+osddevs:
+  - sdb
+  - sdc
+  - sdd
+  - sde
+jnldevs:   []

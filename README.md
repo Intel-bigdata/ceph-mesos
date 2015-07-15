@@ -53,7 +53,7 @@ zookeeper:  zk://mm01:2181,mm02:2181,mm03:2181
 ```
 And start ceph-mesos using below command:
 ```sh
-./ceph-mesos -config ceph-mesos.yml
+./ceph-mesos -config cephmesos.yml
 ```
 You can check the Mesos web console to see your ceph cluster now. After about 10 mins(depend on your network speed), you'll see 5 active tasks running there.
 

@@ -18,7 +18,16 @@
 
 #include "gmock/gmock.h"
 
-int main(int argc, char** argv) {
-   testing::InitGoogleMock(&argc, argv);
-   return RUN_ALL_TESTS();
+#include <common/Config.hpp>
+
+//using namespace testing;
+
+class ConfigEmptyFlag: public testing::Test {
+public:
+  std::string input = "id: ceph";
+  Config* config = parse_config_string(&input);
+};
+
+TEST_F(ConfigEmptyFlag, YetAnotherUnitTest) {
+  ASSERT_THAT(config->id, testing::Eq("ceph"));
 }

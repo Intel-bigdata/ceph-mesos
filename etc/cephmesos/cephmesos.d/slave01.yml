@@ -1,0 +1,11 @@
+mgmtdev:   enp4s0f0
+datadev:   enp9s0
+osddevs:
+  - sdc
+  - sdd
+  - sdf
+  - sdg
+  - sdh
+jnldevs:
+  - sdb
+  - sde

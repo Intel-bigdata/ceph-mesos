@@ -20,6 +20,7 @@
 #define _CEPHMESOS_COMMON_CONFIG_HPP_
 
 #include <string>
+#include <vector>
 
 struct Config
 {
@@ -30,8 +31,15 @@ struct Config
   int restport;
   int fileport;
   std::string fileroot;
+  std::string mgmtdev;
+  std::string datadev;
+  std::vector <std::string> osddevs;
+  std::vector <std::string> jnldevs;
 };
 
+std::string get_file_contents(const char *filename);
+Config* parse_config_string(std::string& input);
 Config* get_config(int* argc, char*** argv);
+Config* get_config_by_hostname(std::string hostname);
 
 #endif

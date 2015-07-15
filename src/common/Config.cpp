@@ -16,6 +16,11 @@
  * limitations under the License.
  */
 
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <cerrno>
+
 #include <common/Config.hpp>
 
 #include <gflags/gflags.h>
@@ -32,22 +37,71 @@ DEFINE_int32(restport, 0, "The REST API server port");
 DEFINE_int32(fileport, 0, "The static file server port");
 DEFINE_string(fileroot, "", "The static file server rootdir");
 
-Config* get_config(int* argc, char*** argv)
+string get_file_contents(const char *filename)
 {
-  gflags::ParseCommandLineFlags(argc, argv, true);
-  YAML::Node config = YAML::LoadFile(FLAGS_config);
+  ifstream in(filename, ios::in | ios::binary);
+  if (in)
+  {
+    ostringstream contents;
+    contents << in.rdbuf();
+    in.close();
+    return(contents.str());
+  }
+  throw(errno);
+}
 
+Config* parse_config_string(string& input)
+{
+  YAML::Node config = YAML::Load(input);
   Config cfg = {
-      (FLAGS_id.empty() ? config["id"].as<string>() : FLAGS_id),
-      (FLAGS_role.empty() ? config["role"].as<string>() : FLAGS_role),
-      (FLAGS_master.empty() ? config["master"].as<string>() : FLAGS_master),
-      (FLAGS_zookeeper.empty() ? config["zookeeper"].as<string>() :
-                                 FLAGS_zookeeper),
-      (FLAGS_restport == 0 ? config["restport"].as<int>() : FLAGS_restport),
-      (FLAGS_fileport == 0 ? config["fileport"].as<int>() : FLAGS_fileport),
-      (FLAGS_fileroot.empty() ? config["fileroot"].as<string>() :
-                                FLAGS_fileroot),
+      config["id"].as<string>(),
+      config["role"].as<string>(),
+      config["master"].as<string>(),
+      config["zookeeper"].as<string>(),
+      config["restport"].as<int>(),
+      config["fileport"].as<int>(),
+      config["fileroot"].as<string>(),
+      config["mgmtdev"].as<string>(),
+      config["datadev"].as<string>(),
+      config["osddevs"].as<vector<string>>(),
+      config["jnldevs"].as<vector<string>>(),
   };
   Config* cfg_p = new Config(cfg);
   return cfg_p;
+}
+
+Config* get_config(int* argc, char*** argv)
+{
+  gflags::ParseCommandLineFlags(argc, argv, true);
+
+  char* filename = (char*)FLAGS_config.c_str();
+  string input = get_file_contents(filename);
+  Config* asdf = parse_config_string(&input);
+
+  Config cfg = {
+      (FLAGS_id.empty() ? asdf->id : FLAGS_id),
+      (FLAGS_role.empty() ? asdf->role : FLAGS_role),
+      (FLAGS_master.empty() ? asdf->master : FLAGS_master),
+      (FLAGS_zookeeper.empty() ? asdf->zookeeper : FLAGS_zookeeper),
+      (FLAGS_restport == 0 ? asdf->restport : FLAGS_restport),
+      (FLAGS_fileport == 0 ? asdf->fileport : FLAGS_fileport),
+      (FLAGS_fileroot.empty() ? asdf->fileroot : FLAGS_fileroot),
+      asdf->mgmtdev,
+      asdf->datadev,
+      asdf->osddevs,
+      asdf->jnldevs,
+  };
+  Config* cfg_p = new Config(cfg);
+  free(defualt);
+  return cfg_p;
+}
+
+Config* get_config_by_hostname(string hostname)
+{
+
+
+
+
+
+
 }
