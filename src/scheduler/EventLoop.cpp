@@ -57,7 +57,6 @@ void EventLoop::processData(string data)
   if (jsonEvent.read(data.c_str())) {
     if ("osd" == jsonEvent.profile()){
       pendingOSD.push_back(jsonEvent.instances());
-      }
       LOG(INFO) << "pendingOSD flexUp request Num: " << pendingOSD.size();
     } else {
       LOG(INFO) << "EventLoop.processData not profile:osd";
