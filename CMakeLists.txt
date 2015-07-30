@@ -136,8 +136,8 @@ target_link_libraries(ceph-mesos
     ${JSONCPP_LIB}
 )
 add_custom_command(TARGET ceph-mesos POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-    ${CMAKE_SOURCE_DIR}/etc/cephmesos/cephmesos.yml
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/etc/cephmesos
     $<TARGET_FILE_DIR:ceph-mesos>
 )
 

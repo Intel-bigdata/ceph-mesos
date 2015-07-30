@@ -38,8 +38,9 @@ struct Config
 };
 
 std::string get_file_contents(const char *filename);
-Config* parse_config_string(std::string& input);
+Config* parse_config_string(std::string input);
 Config* get_config(int* argc, char*** argv);
+std::string get_config_path_by_hostname(std::string hostname);
 Config* get_config_by_hostname(std::string hostname);
 
 #endif

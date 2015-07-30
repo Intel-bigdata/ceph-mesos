@@ -25,7 +25,7 @@
 class ConfigEmptyFlag: public testing::Test {
 public:
   std::string input = "id: ceph";
-  Config* config = parse_config_string(&input);
+  Config* config = parse_config_string(input);
 };
 
 TEST_F(ConfigEmptyFlag, YetAnotherUnitTest) {

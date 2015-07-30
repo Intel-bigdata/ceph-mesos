@@ -28,7 +28,7 @@
 
 using namespace std;
 
-DEFINE_string(config, "/etc/ceph-mesos/ceph-mesos.yml", "The config filepath");
+DEFINE_string(config, "/etc/cephmesos/cephmesos.yml", "The config filepath");
 DEFINE_string(id, "", "Framework ID");
 DEFINE_string(role, "", "Framework role");
 DEFINE_string(master, "", "Mesos master uri");
@@ -50,7 +50,7 @@ string get_file_contents(const char *filename)
   throw(errno);
 }
 
-Config* parse_config_string(string& input)
+Config* parse_config_string(string input)
 {
   YAML::Node config = YAML::Load(input);
   Config cfg = {
@@ -76,7 +76,7 @@ Config* get_config(int* argc, char*** argv)
 
   char* filename = (char*)FLAGS_config.c_str();
   string input = get_file_contents(filename);
-  Config* asdf = parse_config_string(&input);
+  Config* asdf = parse_config_string(input);
 
   Config cfg = {
       (FLAGS_id.empty() ? asdf->id : FLAGS_id),
@@ -92,16 +92,43 @@ Config* get_config(int* argc, char*** argv)
       asdf->jnldevs,
   };
   Config* cfg_p = new Config(cfg);
-  free(defualt);
+  free(asdf);
   return cfg_p;
+}
+
+string get_config_path_by_hostname(string hostname)
+{
+  int pathIndex = FLAGS_config.find_last_of('/');
+  string path = FLAGS_config.substr(0, pathIndex);
+  string configPath = path + "/cephmesos.d/" + hostname + ".yml";
+  return configPath;
 }
 
 Config* get_config_by_hostname(string hostname)
 {
+  char*  defaultConfigFile = (char*)FLAGS_config.c_str();
+  string defaultContents = get_file_contents(defaultConfigFile);
+  Config* defaultConfig = parse_config_string(defaultContents);
+  
+  string hostConfigPath = get_config_path_by_hostname(hostname);
+  char*  hostConfigFile = (char*)hostConfigPath.c_str();
+  string hostContents = get_file_contents(hostConfigFile);
 
-
-
-
-
-
+  YAML::Node hostConfig = YAML::Load(hostContents);
+  Config hostCfg = {
+      (hostConfig["id"] ? hostConfig["id"].as<string>() : (FLAGS_id.empty() ? defaultConfig->id : FLAGS_id)),
+      (hostConfig["role"] ? hostConfig["role"].as<string>() : (FLAGS_role.empty() ? defaultConfig->role : FLAGS_role)),
+      (hostConfig["master"] ? hostConfig["master"].as<string>() : (FLAGS_master.empty() ? defaultConfig->master : FLAGS_master)),
+      (hostConfig["zookeeper"] ? hostConfig["zookeeper"].as<string>() : (FLAGS_zookeeper.empty() ? defaultConfig->zookeeper : FLAGS_zookeeper)),
+      (hostConfig["restport"] ? hostConfig["restport"].as<int>() : (FLAGS_restport == 0 ? defaultConfig->restport : FLAGS_restport)),
+      (hostConfig["fileport"] ? hostConfig["fileport"].as<int>() : (FLAGS_fileport == 0 ? defaultConfig->fileport : FLAGS_fileport)),
+      (hostConfig["fileroot"] ? hostConfig["fileroot"].as<string>() : (FLAGS_fileroot.empty() ? defaultConfig->fileroot : FLAGS_fileroot)),
+      (hostConfig["mgmtdev"] ? hostConfig["mgmtdev"].as<string>() : defaultConfig->mgmtdev),
+      (hostConfig["datadev"] ? hostConfig["datadev"].as<string>() : defaultConfig->datadev),
+      (hostConfig["osddevs"] ? hostConfig["osddevs"].as<vector<string>>() : defaultConfig->osddevs),
+      (hostConfig["jnldevs"] ? hostConfig["jnldevs"].as<vector<string>>() : defaultConfig->jnldevs),
+  };
+  Config* hostCfg_p = new Config(hostCfg);
+  free(defaultConfig);
+  return hostCfg_p;
 }
