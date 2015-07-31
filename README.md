@@ -42,11 +42,11 @@ cd build
 cmake ..
 make
 ```
-After that, you'll see "ceph-mesos", "ceph-mesos-executor", "ceph-mesos-tests" and "ceph-mesos.yml" in the build directory.
+After that, you'll see "ceph-mesos", "ceph-mesos-executor", "ceph-mesos-tests" , "cephmesos.yml" , "ceph.conf" and "cephmesos.d" in the build directory.
 
 Run Ceph-Mesos
 --------------------------
-Modify the ceph-mesos.yml, you must populate the master and zookeeper fields, can leave other field default:
+Modify the cephmesos.yml, you must populate the master and zookeeper fields, can leave other field default:
 ```sh
 master:     zk://mm01:2181,mm02:2181,mm03:2181/mesos
 zookeeper:  zk://mm01:2181,mm02:2181,mm03:2181

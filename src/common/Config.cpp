@@ -53,18 +53,21 @@ string get_file_contents(const char *filename)
 Config* parse_config_string(string input)
 {
   YAML::Node config = YAML::Load(input);
+  string empty_s;
+  int empty_i = -1;
+  vector<string> empty_v;
   Config cfg = {
-      config["id"].as<string>(),
-      config["role"].as<string>(),
-      config["master"].as<string>(),
-      config["zookeeper"].as<string>(),
-      config["restport"].as<int>(),
-      config["fileport"].as<int>(),
-      config["fileroot"].as<string>(),
-      config["mgmtdev"].as<string>(),
-      config["datadev"].as<string>(),
-      config["osddevs"].as<vector<string>>(),
-      config["jnldevs"].as<vector<string>>(),
+      (config["id"] ? config["id"].as<string>() : empty_s),
+      (config["role"] ? config["role"].as<string>() : empty_s),
+      (config["master"] ? config["master"].as<string>() : empty_s),
+      (config["zookeeper"] ? config["zookeeper"].as<string>() : empty_s),
+      (config["restport"] ? config["restport"].as<int>() : empty_i),
+      (config["fileport"] ? config["fileport"].as<int>() : empty_i),
+      (config["fileroot"] ? config["fileroot"].as<string>() : empty_s),
+      (config["mgmtdev"] ? config["mgmtdev"].as<string>() : empty_s),
+      (config["datadev"] ? config["datadev"].as<string>() : empty_s),
+      (config["osddevs"] ? config["osddevs"].as<vector<string>>() : empty_v),
+      (config["jnldevs"] ? config["jnldevs"].as<vector<string>>() : empty_v),
   };
   Config* cfg_p = new Config(cfg);
   return cfg_p;
@@ -76,32 +79,55 @@ Config* get_config(int* argc, char*** argv)
 
   char* filename = (char*)FLAGS_config.c_str();
   string input = get_file_contents(filename);
-  Config* asdf = parse_config_string(input);
+  Config* config = parse_config_string(input);
 
   Config cfg = {
-      (FLAGS_id.empty() ? asdf->id : FLAGS_id),
-      (FLAGS_role.empty() ? asdf->role : FLAGS_role),
-      (FLAGS_master.empty() ? asdf->master : FLAGS_master),
-      (FLAGS_zookeeper.empty() ? asdf->zookeeper : FLAGS_zookeeper),
-      (FLAGS_restport == 0 ? asdf->restport : FLAGS_restport),
-      (FLAGS_fileport == 0 ? asdf->fileport : FLAGS_fileport),
-      (FLAGS_fileroot.empty() ? asdf->fileroot : FLAGS_fileroot),
-      asdf->mgmtdev,
-      asdf->datadev,
-      asdf->osddevs,
-      asdf->jnldevs,
+      (FLAGS_id.empty() ? config->id : FLAGS_id),
+      (FLAGS_role.empty() ? config->role : FLAGS_role),
+      (FLAGS_master.empty() ? config->master : FLAGS_master),
+      (FLAGS_zookeeper.empty() ? config->zookeeper : FLAGS_zookeeper),
+      (FLAGS_restport == 0 ? config->restport : FLAGS_restport),
+      (FLAGS_fileport == 0 ? config->fileport : FLAGS_fileport),
+      (FLAGS_fileroot.empty() ? config->fileroot : FLAGS_fileroot),
+      config->mgmtdev,
+      config->datadev,
+      config->osddevs,
+      config->jnldevs,
   };
   Config* cfg_p = new Config(cfg);
-  free(asdf);
+  free(config);
   return cfg_p;
 }
 
 string get_config_path_by_hostname(string hostname)
 {
-  int pathIndex = FLAGS_config.find_last_of('/');
+  int pathIndex = FLAGS_config.find_last_of('.');
   string path = FLAGS_config.substr(0, pathIndex);
-  string configPath = path + "/cephmesos.d/" + hostname + ".yml";
+  string configPath = path + ".d/" + hostname + ".yml";
   return configPath;
+}
+
+Config* merge_config(Config* defaultConfig , Config* hostConfig)
+{
+  string empty_s;
+  int empty_i = -1;
+  Config config = {
+      empty_s,
+      empty_s,
+      empty_s,
+      empty_s,
+      empty_i,
+      empty_i,
+      empty_s,
+      (hostConfig->mgmtdev.empty() ? defaultConfig->mgmtdev : hostConfig->mgmtdev),
+      (hostConfig->datadev.empty() ? defaultConfig->datadev : hostConfig->datadev),
+      (hostConfig->osddevs.empty() ? defaultConfig->osddevs : hostConfig->osddevs),
+      (hostConfig->jnldevs.empty() ? defaultConfig->jnldevs : hostConfig->jnldevs),
+  };
+  Config* config_p = new Config(config);
+  free(defaultConfig);
+  free(hostConfig);
+  return  config_p;
 }
 
 Config* get_config_by_hostname(string hostname)
@@ -109,26 +135,12 @@ Config* get_config_by_hostname(string hostname)
   char*  defaultConfigFile = (char*)FLAGS_config.c_str();
   string defaultContents = get_file_contents(defaultConfigFile);
   Config* defaultConfig = parse_config_string(defaultContents);
-  
+
   string hostConfigPath = get_config_path_by_hostname(hostname);
   char*  hostConfigFile = (char*)hostConfigPath.c_str();
   string hostContents = get_file_contents(hostConfigFile);
+  Config* hostConfig = parse_config_string(hostContents);
 
-  YAML::Node hostConfig = YAML::Load(hostContents);
-  Config hostCfg = {
-      (hostConfig["id"] ? hostConfig["id"].as<string>() : (FLAGS_id.empty() ? defaultConfig->id : FLAGS_id)),
-      (hostConfig["role"] ? hostConfig["role"].as<string>() : (FLAGS_role.empty() ? defaultConfig->role : FLAGS_role)),
-      (hostConfig["master"] ? hostConfig["master"].as<string>() : (FLAGS_master.empty() ? defaultConfig->master : FLAGS_master)),
-      (hostConfig["zookeeper"] ? hostConfig["zookeeper"].as<string>() : (FLAGS_zookeeper.empty() ? defaultConfig->zookeeper : FLAGS_zookeeper)),
-      (hostConfig["restport"] ? hostConfig["restport"].as<int>() : (FLAGS_restport == 0 ? defaultConfig->restport : FLAGS_restport)),
-      (hostConfig["fileport"] ? hostConfig["fileport"].as<int>() : (FLAGS_fileport == 0 ? defaultConfig->fileport : FLAGS_fileport)),
-      (hostConfig["fileroot"] ? hostConfig["fileroot"].as<string>() : (FLAGS_fileroot.empty() ? defaultConfig->fileroot : FLAGS_fileroot)),
-      (hostConfig["mgmtdev"] ? hostConfig["mgmtdev"].as<string>() : defaultConfig->mgmtdev),
-      (hostConfig["datadev"] ? hostConfig["datadev"].as<string>() : defaultConfig->datadev),
-      (hostConfig["osddevs"] ? hostConfig["osddevs"].as<vector<string>>() : defaultConfig->osddevs),
-      (hostConfig["jnldevs"] ? hostConfig["jnldevs"].as<vector<string>>() : defaultConfig->jnldevs),
-  };
-  Config* hostCfg_p = new Config(hostCfg);
-  free(defaultConfig);
+  Config* hostCfg_p = merge_config(defaultConfig, hostConfig);
   return hostCfg_p;
 }

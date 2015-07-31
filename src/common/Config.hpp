@@ -41,6 +41,7 @@ std::string get_file_contents(const char *filename);
 Config* parse_config_string(std::string input);
 Config* get_config(int* argc, char*** argv);
 std::string get_config_path_by_hostname(std::string hostname);
+Config* merge_config(Config* defaultConfig , Config* hostConfig);
 Config* get_config_by_hostname(std::string hostname);
 
 #endif
