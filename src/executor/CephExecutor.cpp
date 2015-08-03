@@ -47,11 +47,43 @@ void CephExecutor::killTask(ExecutorDriver* driver, const TaskID& taskId){}
 
 void CephExecutor::error(ExecutorDriver* driver, const string& message){}
 
+void CephExecutor::deleteConfigDir(string localSharedConfigDir)
+{
+  string cmd = "rm -rf " +
+      localSharedConfigDirRoot + "/" + localSharedConfigDir;
+  string r = runShellCommand(cmd);
+  LOG(INFO) << "Delete config dir with command: " << cmd;
+}
+
+bool CephExecutor::existsConfigFiles(string localSharedConfigDir)
+{
+  string cmd;
+  string r;
+  string pre = localSharedConfigDirRoot +
+      "/" + localSharedConfigDir + "/etc/ceph/";
+  string adminkeyring = pre + "ceph.client.admin.keyring";
+  string cephconf = pre + "ceph.conf";
+  string monkeyring = pre + "ceph.mon.keyring";
+  string monmap = pre + "monmap";
+  cmd = "[ -f "+ adminkeyring + " ]" + " && " +
+      "[ -f "+ cephconf + " ]" + " && " +
+      "[ -f "+ monkeyring + " ]" + " && " +
+      "[ -f "+ monmap + " ]" +
+      ";echo $?";
+  r = runShellCommand(cmd);
+  //already have the shared config
+  if ( "0" == r ) {
+    return true;
+  }
+  return false;
+}
+
 bool CephExecutor::createLocalSharedConfigDir(string localSharedConfigDir)
 {
-  string rmcmd = "cd " + localSharedConfigDirRoot + " && " +
-      "rm -rf " + localSharedConfigDir;
-  runShellCommand(rmcmd);
+  if (existsConfigFiles(localSharedConfigDir)) {
+    LOG(INFO) << "Ceph config files already exists";
+    return true;
+  }
   string cmd = "cd " + localSharedConfigDirRoot + " && " +
       "mkdir " + localSharedConfigDir + " && " +
       "cd " + localSharedConfigDir + " && " +
@@ -75,7 +107,30 @@ bool CephExecutor::createLocalSharedConfigDir(string localSharedConfigDir)
   }
 }
 
-bool CephExecutor::copySharedConfigDir(string localSharedConfigDir)
+bool CephExecutor::copyWaitingNICEntryPoint(string localSharedConfigDir)
+{
+  string cmd = "[ -f " + localSharedConfigDir + "/wfn/wfn.sh ];" +
+      "echo $?";
+  string r = runShellCommand(cmd);
+  if ("0" == r){
+    LOG(INFO) << "wfn.sh already exists";
+    return true;
+  }
+  cmd = "cd " + localSharedConfigDir + " && " +
+      "mkdir wfn" + " && "
+      "cd " + sandboxAbsolutePath + " && " +
+      "cp ./wfn.sh " + localSharedConfigDir + "/wfn/" +
+      " && chmod 777 -R " + localSharedConfigDir + "/wfn"
+      ";echo $?";
+  r = runShellCommand(cmd);
+  if ("0" == r){
+    return true;
+  } else {
+    return false;
+  }
+}
+
+bool CephExecutor::copySharedConfigFiles(string localSharedConfigDir)
 {
   string cmd = "cd " + sandboxAbsolutePath + " && " +
       "cp ./ceph.client.admin.keyring " +
@@ -96,23 +151,26 @@ string CephExecutor::constructMonCommand(
       string _containerName)
 {
   string cmd;
-  string ip = NetUtil::getIPByHostname(myHostname);
   string imagename = "ceph/mon";
+  string local_wfn_dir = localMountDir + "/wfn";
   string local_config_dir = localMountDir + "/etc/ceph";
   string local_monfs_dir = localMountDir + "/var/lib/ceph";
-  string docker_start_cmd = "docker run --rm --net=host --privileged --name " +
+  string docker_start_cmd = "docker run --rm --net=none --privileged --name " +
       _containerName;
-  string docker_env_param = " -e MON_IP=" + ip +
-      " -e MON_NAME=" + myHostname;
+  string docker_env_param = " -e MON_IP_AUTO_DETECT=4";
+  string docker_new_entrypoint = " --entrypoint=/root/wfn.sh";
   //TODO: mount /etc/localtime means sync time with localhost, need at least Docker v1.6.2
   string docker_volume_param = " -v " + local_config_dir +
       ":/etc/ceph:rw" + " -v " + local_monfs_dir +
-      ":/var/lib/ceph:rw ";
+      ":/var/lib/ceph:rw" + " -v " + local_wfn_dir + ":/root ";
+  string docker_new_entrypoint_param = " -e=/entrypoint.sh -n=eth0";
   string docker_command;
   docker_command.append(docker_start_cmd);
   docker_command.append(docker_env_param);
+  docker_command.append(docker_new_entrypoint);
   docker_command.append(docker_volume_param);
   docker_command.append(imagename);
+  docker_command.append(docker_new_entrypoint_param);
   return docker_command;
 }
 
@@ -130,24 +188,31 @@ string CephExecutor::constructOSDCommand(
 {
   string cmd;
   string imagename = "ceph/osd";
+  string local_wfn_dir = localMountDir + "/wfn";
   string local_config_dir = localMountDir + "/etc/ceph";
   string local_fs_dir = localMountDir + "/var/lib/ceph";
   //mkdir for osdId
-  cmd = "mkdir -p " + local_fs_dir + "/osd/ceph-" + osdId +
+  string osdid_dir_name = "ceph-" + osdId;
+  cmd = "mkdir -p " + local_fs_dir + "/osd/" + osdid_dir_name +
       ";echo $?";
   runShellCommand(cmd);
-  string docker_start_cmd = "docker run --rm --net=host --privileged --name " +
+  string docker_start_cmd = "docker run --rm --net=none --privileged --name " +
       _containerName;
-  string docker_env_param = " -e HOST_NAME=" + myHostname;
+  string docker_env_param = " -e HOSTNAME=" + myHostname;
+  string docker_new_entrypoint = " --entrypoint=/root/wfn.sh";
   //TODO: mount /etc/localtime means sync time with localhost, need at least Docker v1.6.2
   string docker_volume_param = " -v " + local_config_dir +
-      ":/etc/ceph:rw" + " -v " + local_fs_dir +
-      ":/var/lib/ceph:rw ";
+      ":/etc/ceph:rw" + " -v " + local_fs_dir + "/osd/" + osdid_dir_name +
+      ":/var/lib/ceph/osd/" + osdid_dir_name + ":rw" +
+      + " -v " + local_wfn_dir + ":/root ";
+  string docker_new_entrypoint_param = " -e=/sbin/my_init -n=eth0";
   string docker_command;
   docker_command.append(docker_start_cmd);
   docker_command.append(docker_env_param);
+  docker_command.append(docker_new_entrypoint);
   docker_command.append(docker_volume_param);
   docker_command.append(imagename);
+  docker_command.append(docker_new_entrypoint_param);
   return docker_command;
 }
 
@@ -156,25 +221,29 @@ string CephExecutor::constructRADOSGWCommand(
     string _containerName)
 {
   string imagename = "ceph/radosgw";
+  string local_wfn_dir = localMountDir + "/wfn";
   string local_config_dir = localMountDir + "/etc/ceph";
-  string docker_start_cmd = "docker run --rm --net=host --privileged --name " +
+  string docker_start_cmd = "docker run --rm --net=none --privileged --name " +
       _containerName;
   string docker_env_param = " -e RGW_NAME=" + _containerName;
+  string docker_new_entrypoint = " --entrypoint=/root/wfn.sh";
   //TODO: mount /etc/localtime means sync time with localhost, need at least Docker v1.6.2
   string docker_volume_param = " -v " + local_config_dir +
-      ":/etc/ceph:rw ";
+      ":/etc/ceph:rw" + " -v " + local_wfn_dir + ":/root ";
+  string docker_new_entrypoint_param = " -e=/entrypoint.sh -n=eth0";
   string docker_command;
   docker_command.append(docker_start_cmd);
   docker_command.append(docker_env_param);
+  docker_command.append(docker_new_entrypoint);
   docker_command.append(docker_volume_param);
   docker_command.append(imagename);
+  docker_command.append(docker_new_entrypoint_param);
   return docker_command;
 
 }
 
 bool CephExecutor::block_until_started(string _containerName, string timeout)
 {
-  //TODO: optimize this by while
   time_t current = time(0);
   time_t deadline = current + lexical_cast<int>(timeout);
   //poll the result every 3 seconds until timeout
@@ -200,6 +269,45 @@ bool CephExecutor::block_until_started(string _containerName, string timeout)
     return false;
   }
   LOG(INFO) << "error code: " << r;
+  return true;
+}
+//TODO: support multiple nic creation
+bool CephExecutor::createNICs(string _containerName, string physicalNIC, string containerNIC)
+{
+  time_t current = time(0);
+  time_t deadline = current + lexical_cast<int>(30);
+  //poll the result every 3 seconds until timeout
+  string cmd;
+  string r;
+  while (current < deadline) {
+    cmd = "docker ps |grep " + _containerName + " > /dev/null ;echo $?";
+    r = runShellCommand(cmd);
+    usleep(2*1000000);
+    if ("0" == r) {
+      break;
+    }
+  }
+  if ("0" != r) {
+    LOG(INFO) << "Docker container failed to start!";
+    return false;
+  }
+  LOG(INFO) << "start creating " + containerNIC + "for " + _containerName;
+  cmd = "container_pid=$(docker inspect --format=\"{{.State.Pid}}\" " +
+      _containerName + ")" + ";" +
+      "ip link add link " + physicalNIC +
+      " name mvb0 type macvlan mode bridge" + ";" +
+      "ip link set netns $container_pid mvb0" + ";" +
+      "sleep 3" + ";" +
+      "nsenter -t $container_pid -n ip link set mvb0 name " +
+      containerNIC + ";" +
+      "dhclient -r " + containerNIC + ";" +
+      "nsenter -t $container_pid -n dhclient " + containerNIC +
+      ";echo $?";
+  r = runShellCommand(cmd);
+  if ("0" != r) {
+    return false;
+  }
+  LOG(INFO) << "Create NIC done.";
   return true;
 }
 
@@ -281,6 +389,8 @@ void CephExecutor::frameworkMessage(ExecutorDriver* driver, const string& data)
             localSharedConfigDirRoot + "/" + localConfigDirName,
             tokens[1],
             containerName);
+        LOG(INFO) << "Stating OSD container with command: ";
+        LOG(INFO) << dockerCommand;
         myPID = fork();
         if (0 == myPID){
             //child long running docker thread
@@ -288,9 +398,18 @@ void CephExecutor::frameworkMessage(ExecutorDriver* driver, const string& data)
             //thread(&CephExecutor::startLongRunning,*this,"docker", dockerCommand).detach();
             startLongRunning("docker",dockerCommand);
         } else {
-          bool started = block_until_started(containerName, "30");
+          LOG(INFO) << "here!";
           TaskStatus status;
           status.mutable_task_id()->MergeFrom(myTaskId);
+          bool nicReady = createNICs(containerName, "ens2f0", "eth0");
+          if (!nicReady) {
+            LOG(INFO) << "Failed to create macvlan NIC for " << containerName;
+            runShellCommand("docker rm -f " + containerName);
+            status.set_state(TASK_FAILED);
+            driver->sendStatusUpdate(status);
+            return;
+          }
+          bool started = block_until_started(containerName, "30");
           if (started) {
             LOG(INFO) << "Starting OSD task " << myTaskId.value();
             //send the OSD id back to let scheduler remove it
@@ -379,13 +498,14 @@ void CephExecutor::launchTask(ExecutorDriver* driver, const TaskInfo& task)
   bool needCopyConfig = true;
   bool needStartFileServer = false;
   int taskType;
-  if (task.has_data()){
+  if (task.has_data()) {
     LOG(INFO) << "Got TaskInfo data: " << task.data();
     vector<string> tokens = StringUtil::explode(task.data(),'.');
     //split by '.', the first part is isInitialMonNode,
     //second part is used for task type
     if (tokens[0] == "1"){
       needCopyConfig = false;
+      deleteConfigDir(localConfigDirName);
     }
     taskType = lexical_cast<int>(tokens[1]);
   }
@@ -395,7 +515,6 @@ void CephExecutor::launchTask(ExecutorDriver* driver, const TaskInfo& task)
   status.mutable_task_id()->MergeFrom(task.task_id());
 
   //make local shared dir, all type of task need this:
-  //TODO: check if already exists valid dirctory tree
   if (!createLocalSharedConfigDir(localConfigDirName)) {
     LOG(INFO) << "created local shared directory failed!";
     status.set_state(TASK_FAILED);
@@ -403,11 +522,19 @@ void CephExecutor::launchTask(ExecutorDriver* driver, const TaskInfo& task)
     return;
   }
   LOG(INFO) << "Create directory tree done.";
-  //mount shared local dir
+  //copy wfn.sh to local shared dir
+  if (!copyWaitingNICEntryPoint(localMountDir)) {
+    LOG(INFO) << "copy wfn.sh failed!";
+    status.set_state(TASK_FAILED);
+    driver->sendStatusUpdate(status);
+    return;
+  }
+  LOG(INFO) << "Copy wfn.sh done.";
+  //copy shared config file
   if (needCopyConfig) {
     string abPath = localMountDir + "/"
         + "/etc/ceph/";
-    if (!copySharedConfigDir(abPath)) {
+    if (!copySharedConfigFiles(abPath)) {
       LOG(INFO) << "Copy shared config file failed!";
       status.set_state(TASK_FAILED);
       driver->sendStatusUpdate(status);
@@ -415,7 +542,6 @@ void CephExecutor::launchTask(ExecutorDriver* driver, const TaskInfo& task)
     }
     LOG(INFO) << "Copy config files done.";
   }
-
 
   //run docker command for MON and RADOSGW
   string cName = getContainerName(task.task_id().value());
@@ -473,8 +599,19 @@ void CephExecutor::launchTask(ExecutorDriver* driver, const TaskInfo& task)
     startLongRunning("docker",dockerCommand);
   } else {
     //parent thread
+    //new a macvlan eth0 for this container
+
+    bool nicReady = createNICs(containerName, "ens2f0", "eth0");
+    if (!nicReady) {
+      LOG(INFO) << "Failed to create macvlan NIC for " << containerName;
+      runShellCommand("docker rm -f " + containerName);
+      status.set_state(TASK_FAILED);
+      driver->sendStatusUpdate(status);
+      return;
+    }
+
     //check if started normally
-    bool started = block_until_started(cName, "30");
+    bool started = block_until_started(cName, "60");
     if (started) {
       LOG(INFO) << "Starting task " << task.task_id().value();
       status.set_state(TASK_RUNNING);

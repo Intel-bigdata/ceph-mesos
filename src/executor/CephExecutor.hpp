@@ -54,9 +54,15 @@ public:
 private:
   string runShellCommand(string cmd);
 
+  void deleteConfigDir(string localSharedConfigDir);
+
+  bool existsConfigFiles(string localSharedConfigDir);
+
   bool createLocalSharedConfigDir(string localSharedConfigDir);
 
-  bool copySharedConfigDir(string localSharedConfigDir);
+  bool copyWaitingNICEntryPoint(string localSharedConfigDir);
+
+  bool copySharedConfigFiles(string localSharedConfigDir);
 
   string getContainerName(string taskId);
 
@@ -76,6 +82,8 @@ private:
       string _containerName);
 
   bool block_until_started(string _containerName, string timeout);
+
+  bool createNICs(string _containerName, string physicalNIC, string containerNIC);
 
   void startLongRunning(string binaryName, string cmd);
 

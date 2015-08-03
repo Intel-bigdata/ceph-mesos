@@ -228,21 +228,12 @@ void StateMachine::updateTaskToFailed(string taskId)
 bool StateMachine::nextMove(TaskType& taskType, int& token, string hostName)
 {
   //check if this host have our deamon
-  //TODO: mon and osd can actully run on the same host
-  TaskState taskState;
-  for ( auto it = taskMap.begin(); it != taskMap.end(); it++) {
-    taskState = static_cast<TaskState>(it->second);
-    if (hostName == taskState.hostName){
-        LOG(INFO) << "Not accepted, already running task on " << hostName;
-        return false;
-    }
-  }
   Phase currentPhase = getCurrentPhase();
   switch (currentPhase) {
     case Phase::RECONCILING_TASKS:
     case Phase::BOOTSTRAP_MON:
       taskType = TaskType::MON;
-      if (monStagingNum < 1) {
+      if (monStagingNum < 1 && (monStagingNum + monRunningNum) < 1) {
         token = monIndex++;
         return true;
       } else {
