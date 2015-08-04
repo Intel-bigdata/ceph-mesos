@@ -40,30 +40,29 @@ DEFINE_string(fileroot, "", "The static file server rootdir");
 string get_file_contents(const char *filename)
 {
   ifstream in(filename, ios::in | ios::binary);
-  if (in)
+  if (!in)
   {
-    ostringstream contents;
-    contents << in.rdbuf();
-    in.close();
-    return(contents.str());
+      cout << "[warning] not found file " + string(filename) << endl;
   }
-  throw(errno);
+  ostringstream contents;
+  contents << in.rdbuf();
+  in.close();
+  return(contents.str());
 }
 
 Config* parse_config_string(string input)
 {
   YAML::Node config = YAML::Load(input);
   string empty_s;
-  int empty_i = -1;
   vector<string> empty_v;
   Config cfg = {
-      (config["id"] ? config["id"].as<string>() : empty_s),
-      (config["role"] ? config["role"].as<string>() : empty_s),
-      (config["master"] ? config["master"].as<string>() : empty_s),
-      (config["zookeeper"] ? config["zookeeper"].as<string>() : empty_s),
-      (config["restport"] ? config["restport"].as<int>() : empty_i),
-      (config["fileport"] ? config["fileport"].as<int>() : empty_i),
-      (config["fileroot"] ? config["fileroot"].as<string>() : empty_s),
+      (config["id"] ? config["id"].as<string>() : FLAGS_id),
+      (config["role"] ? config["role"].as<string>() : FLAGS_role),
+      (config["master"] ? config["master"].as<string>() : FLAGS_master),
+      (config["zookeeper"] ? config["zookeeper"].as<string>() : FLAGS_zookeeper),
+      (config["restport"] ? config["restport"].as<int>() : FLAGS_restport),
+      (config["fileport"] ? config["fileport"].as<int>() : FLAGS_fileport),
+      (config["fileroot"] ? config["fileroot"].as<string>() : FLAGS_fileroot),
       (config["mgmtdev"] ? config["mgmtdev"].as<string>() : empty_s),
       (config["datadev"] ? config["datadev"].as<string>() : empty_s),
       (config["osddevs"] ? config["osddevs"].as<vector<string>>() : empty_v),
@@ -101,24 +100,27 @@ Config* get_config(int* argc, char*** argv)
 
 string get_config_path_by_hostname(string hostname)
 {
-  int pathIndex = FLAGS_config.find_last_of('.');
-  string path = FLAGS_config.substr(0, pathIndex);
-  string configPath = path + ".d/" + hostname + ".yml";
+  string path;
+  int pathIndex = FLAGS_config.find_last_of('/');
+  
+  if (pathIndex != -1)
+  {
+      path = FLAGS_config.substr(0, pathIndex) + "/";
+  }
+  string configPath = path + "cephmesos.d/" + hostname + ".yml";
   return configPath;
 }
 
 Config* merge_config(Config* defaultConfig , Config* hostConfig)
 {
-  string empty_s;
-  int empty_i = -1;
   Config config = {
-      empty_s,
-      empty_s,
-      empty_s,
-      empty_s,
-      empty_i,
-      empty_i,
-      empty_s,
+      FLAGS_id,
+      FLAGS_role,
+      FLAGS_master,
+      FLAGS_zookeeper,
+      FLAGS_restport,
+      FLAGS_fileport,
+      FLAGS_fileroot,
       (hostConfig->mgmtdev.empty() ? defaultConfig->mgmtdev : hostConfig->mgmtdev),
       (hostConfig->datadev.empty() ? defaultConfig->datadev : hostConfig->datadev),
       (hostConfig->osddevs.empty() ? defaultConfig->osddevs : hostConfig->osddevs),
