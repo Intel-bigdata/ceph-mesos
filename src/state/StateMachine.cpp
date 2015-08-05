@@ -33,7 +33,9 @@ StateMachine::StateMachine(Config* _config) : config(_config)
 {
   //TODO : change this to RECONCILING_TASKS after we can put the taskMap to zookeeper
   currentPhase = Phase::BOOTSTRAP_MON;
+  defaultHostConfig = HostConfig(_config);
 }
+
 StateMachine::~StateMachine(){}
 
 void StateMachine::addStagingTask(
@@ -227,22 +229,12 @@ void StateMachine::updateTaskToFailed(string taskId)
 
 bool StateMachine::nextMove(TaskType& taskType, int& token, string hostName)
 {
-  //check if this host have our deamon
-  //TODO: mon and osd can actully run on the same host
-  TaskState taskState;
-  for ( auto it = taskMap.begin(); it != taskMap.end(); it++) {
-    taskState = static_cast<TaskState>(it->second);
-    if (hostName == taskState.hostName){
-        LOG(INFO) << "Not accepted, already running task on " << hostName;
-        return false;
-    }
-  }
   Phase currentPhase = getCurrentPhase();
   switch (currentPhase) {
     case Phase::RECONCILING_TASKS:
     case Phase::BOOTSTRAP_MON:
       taskType = TaskType::MON;
-      if (monStagingNum < 1) {
+      if (monStagingNum < 1 && (monStagingNum + monRunningNum) < 1) {
         token = monIndex++;
         return true;
       } else {
@@ -275,6 +267,32 @@ bool StateMachine::nextMove(TaskType& taskType, int& token, string hostName)
   }
   return false;
 }
+
+void StateMachine::addConfig(string hostname)
+{
+  auto it = hostConfigMap.find(hostname);
+  if (it != hostConfigMap.end()) {
+    HostConfig hc = hostConfigMap[hostname]; 
+    hc.reload();
+  } else {
+    HostConfig hc(hostname);
+    LOG(INFO)<<"add this host config:";
+    LOG(INFO)<<hc.toString();
+    hostConfigMap[hostname] = hc;
+  }
+}
+
+HostConfig StateMachine::getConfig(string hostname)
+{
+  auto it = hostConfigMap.find(hostname);
+  if (it != hostConfigMap.end()) {
+    HostConfig hc = hostConfigMap[hostname];
+    return hc; 
+  } else {
+    return defaultHostConfig;
+  }
+}
+
 TaskState StateMachine::getInitialMon()
 {
   TaskState taskState;

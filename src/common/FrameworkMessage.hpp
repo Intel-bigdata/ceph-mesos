@@ -31,4 +31,17 @@ enum class MessageToExecutor : int
   LAUNCH_OSD
 };
 
+class CustomData
+{
+public:
+  static constexpr const char* mgmtdevKey = "mgmtdev";
+
+  static constexpr const char* datadevKey = "datadev";
+
+  static constexpr const char* osddevsKey = "osddevs";
+
+  static constexpr const char* jnldevsKey = "jnldevs";
+
+};
+
 #endif

@@ -24,12 +24,14 @@
 
 #include "Phase.hpp"
 #include "TaskState.hpp"
+#include "HostConfig.hpp"
 #include "common/Config.hpp"
 #include "common/TaskType.hpp"
 
 using ceph::Phase;
 using ceph::TaskState;
 using ceph::TaskType;
+using ceph::HostConfig;
 using boost::unordered_map;
 using std::string;
 using std::vector;
@@ -78,8 +80,14 @@ public:
 
   bool nextMove(TaskType& taskType, int& token, string hostName);
 
+  void addConfig(string hostname);
+
+  HostConfig getConfig(string hostname);
+
 private:
   unordered_map<std::string, ceph::TaskState> taskMap;
+
+  unordered_map<std::string, ceph::HostConfig> hostConfigMap;
 
   vector<int> pendingOSDID;
 
@@ -98,6 +106,7 @@ private:
   int radosgwIndex = 0;
 
   Config* config;
+  HostConfig defaultHostConfig;
 };
 
 #endif

@@ -54,9 +54,15 @@ public:
 private:
   string runShellCommand(string cmd);
 
+  void deleteConfigDir(string localSharedConfigDir);
+
+  bool existsConfigFiles(string localSharedConfigDir);
+
   bool createLocalSharedConfigDir(string localSharedConfigDir);
 
-  bool copySharedConfigDir(string localSharedConfigDir);
+  bool copyWaitingNICEntryPoint(string localSharedConfigDir);
+
+  bool copySharedConfigFiles(string localSharedConfigDir);
 
   string getContainerName(string taskId);
 
@@ -77,9 +83,21 @@ private:
 
   bool block_until_started(string _containerName, string timeout);
 
+  bool createNICs(string _containerName, string physicalNIC, string containerNIC);
+
   void startLongRunning(string binaryName, string cmd);
 
   bool downloadDockerImage(string imageName);
+
+  bool parseHostConfig(TaskInfo taskinfo);
+
+  bool prepareDisks();
+
+  bool partitionDisk(string diskname, int partitionCount);
+
+  bool mkfsDisk(string diskname, string type, string flags);
+
+  bool mountDisk(string diskname, string dir, string flags);
 
   string containerName;
 
@@ -92,6 +110,15 @@ private:
   string localSharedConfigDirRoot;
   string localConfigDirName = "ceph_config_root";
   string sandboxAbsolutePath;
+  string localMountOSDDir = "";
+  //host hardware info
+  string mgmtNIC;
+  string dataNIC;
+  string osddisk;
+  string jnldisk;
+  string fsType = "xfs";
+  string mkfsFLAGS = " -f -i size=2048 -n size=64k";
+  string mountFLAGS = " -o inode64,noatime,logbsize=256k";
 };
 
 #endif
