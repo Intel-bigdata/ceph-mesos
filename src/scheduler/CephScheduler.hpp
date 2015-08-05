@@ -84,6 +84,8 @@ private:
       int isInitialMonNode,
       ExecutorInfo& executor);
 
+  void addHostConfig(TaskInfo &taskinfo, TaskType taskType, string hostname);
+
   string createTaskName(TaskType taskType, int token);
 
   void handleWaitingOSDTasks(SchedulerDriver* driver);

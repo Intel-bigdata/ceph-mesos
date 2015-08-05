@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef _CEPHMESOS_STATE_NODESTATE_HPP_
-#define _CEPHMESOS_STATE_NODESTATE_HPP_
+#ifndef _CEPHMESOS_STATE_TASKSTATE_HPP_
+#define _CEPHMESOS_STATE_TASKSTATE_HPP_
 
 #include "Status.hpp"
 #include "common/TaskType.hpp"

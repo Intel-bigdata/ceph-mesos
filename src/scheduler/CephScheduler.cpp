@@ -145,6 +145,8 @@ void CephScheduler::resourceOffers(
   Phase currentPhase = stateMachine->getCurrentPhase();
   //try start new node
   foreach (const Offer& offer, offers) {
+    //reload or new hostconfig
+    stateMachine->addConfig(offer.hostname());
     bool accept = stateMachine->nextMove(taskType,token,offer.hostname());
     if (!accept) {
       LOG(INFO) << "In the "
@@ -272,6 +274,33 @@ string CephScheduler::createExecutor(
   return id;
 }
 
+void CephScheduler::addHostConfig(TaskInfo &taskinfo, TaskType taskType, string hostname)
+{
+  HostConfig hostconfig = stateMachine->getConfig(hostname);
+  Labels labels;
+  //mgmt NIC name
+  Label* one_label = labels.add_labels();
+  one_label->set_key(CustomData::mgmtdevKey);
+  one_label->set_value(hostconfig.getMgmtDev());
+  //data NIC name
+  one_label = labels.add_labels();
+  one_label->set_key(CustomData::datadevKey);
+  one_label->set_value(hostconfig.getDataDev());
+  if (TaskType::OSD == taskType) {
+    // osd disk
+    one_label = labels.add_labels();
+    string osddisk = hostconfig.popOSDDisk();
+    one_label->set_key(CustomData::osddevsKey);
+    one_label->set_value(osddisk);
+    // journal disk
+    one_label = labels.add_labels();
+    string journaldisk = hostconfig.popJournalDisk();
+    one_label->set_key(CustomData::jnldevsKey);
+    one_label->set_value(journaldisk);
+  }
+  taskinfo.mutable_labels()->MergeFrom(labels);
+}
+
 string CephScheduler::createTaskName(TaskType taskType, int token)
 {
   string prefix;
@@ -372,6 +401,8 @@ void CephScheduler::launchNode(
       executor);
 
   TaskInfo task;
+  //set host info to TaskInfo
+  addHostConfig(task, taskType, offer.hostname());
   task.set_name(createTaskName(taskType,token));
   //set this to indicate executor whether to download shared config
   task.set_data(

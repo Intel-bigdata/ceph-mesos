@@ -33,7 +33,9 @@ StateMachine::StateMachine(Config* _config) : config(_config)
 {
   //TODO : change this to RECONCILING_TASKS after we can put the taskMap to zookeeper
   currentPhase = Phase::BOOTSTRAP_MON;
+  defaultHostConfig = HostConfig(_config);
 }
+
 StateMachine::~StateMachine(){}
 
 void StateMachine::addStagingTask(
@@ -227,7 +229,6 @@ void StateMachine::updateTaskToFailed(string taskId)
 
 bool StateMachine::nextMove(TaskType& taskType, int& token, string hostName)
 {
-  //check if this host have our deamon
   Phase currentPhase = getCurrentPhase();
   switch (currentPhase) {
     case Phase::RECONCILING_TASKS:
@@ -266,6 +267,32 @@ bool StateMachine::nextMove(TaskType& taskType, int& token, string hostName)
   }
   return false;
 }
+
+void StateMachine::addConfig(string hostname)
+{
+  auto it = hostConfigMap.find(hostname);
+  if (it != hostConfigMap.end()) {
+    HostConfig hc = hostConfigMap[hostname]; 
+    hc.reload();
+  } else {
+    HostConfig hc(hostname);
+    LOG(INFO)<<"add this host config:";
+    LOG(INFO)<<hc.toString();
+    hostConfigMap[hostname] = hc;
+  }
+}
+
+HostConfig StateMachine::getConfig(string hostname)
+{
+  auto it = hostConfigMap.find(hostname);
+  if (it != hostConfigMap.end()) {
+    HostConfig hc = hostConfigMap[hostname];
+    return hc; 
+  } else {
+    return defaultHostConfig;
+  }
+}
+
 TaskState StateMachine::getInitialMon()
 {
   TaskState taskState;

@@ -89,6 +89,16 @@ private:
 
   bool downloadDockerImage(string imageName);
 
+  bool parseHostConfig(TaskInfo taskinfo);
+
+  bool prepareDisks();
+
+  bool partitionDisk(string diskname, int partitionCount);
+
+  bool mkfsDisk(string diskname, string type, string flags);
+
+  bool mountDisk(string diskname, string dir, string flags);
+
   string containerName;
 
   TaskID myTaskId;
@@ -100,6 +110,15 @@ private:
   string localSharedConfigDirRoot;
   string localConfigDirName = "ceph_config_root";
   string sandboxAbsolutePath;
+  string localMountOSDDir = "";
+  //host hardware info
+  string mgmtNIC;
+  string dataNIC;
+  string osddisk;
+  string jnldisk;
+  string fsType = "xfs";
+  string mkfsFLAGS = " -f -i size=2048 -n size=64k";
+  string mountFLAGS = " -o inode64,noatime,logbsize=256k";
 };
 
 #endif
