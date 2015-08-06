@@ -145,6 +145,16 @@ void CephScheduler::resourceOffers(
   Phase currentPhase = stateMachine->getCurrentPhase();
   //try start new node
   foreach (const Offer& offer, offers) {
+    //check offer with the correct role
+    LOG(INFO) << "Hostname: " << offer.hostname();
+    if (!hasRole(offer, config->role)) {
+      LOG(INFO) << "Decline this offer. Host " << offer.hostname() << " don't have correct role:"
+          << config->role;
+      Filters refuse;
+      refuse.set_refuse_seconds(86400.0);
+      driver->declineOffer(offer.id(),refuse);
+      continue;
+    }
     //reload or new hostconfig
     stateMachine->addConfig(offer.hostname());
     bool accept = stateMachine->nextMove(taskType,token,offer.hostname());
@@ -380,6 +390,17 @@ bool CephScheduler::fetchPendingRESTfulRequest()
   }
 }
 
+bool CephScheduler::hasRole(const Offer& offer, string role)
+{
+  Resources res = offer.resources();
+  foreach (Resource resource, res) {
+    if (role == resource.role()){
+      return true;
+    }
+  }
+  return false;
+}
+
 void CephScheduler::launchNode(
       SchedulerDriver* driver,
       const Offer& offer,
@@ -421,12 +442,14 @@ void CephScheduler::launchNode(
   resource = task.add_resources();
   resource->set_name("cpus");
   resource->set_type(Value::SCALAR);
+  resource->set_role(config->role);
   //TODO: use resource limit in config, like "mesos.ceph.mon.cpus"
   resource->mutable_scalar()->set_value(1);
 
   resource = task.add_resources();
   resource->set_name("mem");
   resource->set_type(Value::SCALAR);
+  resource->set_role(config->role);
   //TODO: use resource limit in config, like "mesos.ceph.mon.mem"
   resource->mutable_scalar()->set_value(1024);
 
@@ -442,9 +465,9 @@ bool CephScheduler::offerNotEnoughResources(const Offer& offer, TaskType taskTyp
   int mems = 1024;
   static const Resources neededResources = Resources::parse(
       "cpus:" + stringify(cpus) +
-      ";mem:" + stringify(mems)).get();
+      ";mem:" + stringify(mems),config->role).get();
   Resources res = offer.resources();
-  if (res.flatten().contains(neededResources)) {
+  if (res.flatten(config->role).contains(neededResources)) {
     return false;
   } else {
     return true;

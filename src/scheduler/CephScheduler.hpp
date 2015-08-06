@@ -92,6 +92,8 @@ private:
 
   bool fetchPendingRESTfulRequest();
 
+  bool hasRole(const Offer& offer, string role);
+
   void launchNode(
       SchedulerDriver* driver,
       const Offer& offer,
