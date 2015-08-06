@@ -1,20 +1,20 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
 
 #include <fstream>
 #include <sstream>
@@ -37,17 +37,82 @@ DEFINE_int32(restport, 0, "The REST API server port");
 DEFINE_int32(fileport, 0, "The static file server port");
 DEFINE_string(fileroot, "", "The static file server rootdir");
 
+Config* get_config(int* argc, char*** argv)
+{
+  gflags::ParseCommandLineFlags(argc, argv, true);
+
+  char* filename = (char*)FLAGS_config.c_str();
+  string input = get_file_contents(filename);
+  Config* config = parse_config_string(input);
+  Config cfg = {
+      (FLAGS_id.empty() ? config->id : FLAGS_id),
+      (FLAGS_role.empty() ? config->role : FLAGS_role),
+      (FLAGS_master.empty() ? config->master : FLAGS_master),
+      (FLAGS_zookeeper.empty() ? config->zookeeper : FLAGS_zookeeper),
+      (FLAGS_restport == 0 ? config->restport : FLAGS_restport),
+      (FLAGS_fileport == 0 ? config->fileport : FLAGS_fileport),
+      (FLAGS_fileroot.empty() ? config->fileroot : FLAGS_fileroot),
+      config->mgmtdev,
+      config->datadev,
+      config->osddevs,
+      config->jnldevs,
+  };
+  Config* cfg_p = new Config(cfg);
+  free(config);
+  return cfg_p;
+}
+
+Config* get_config_by_hostname(string hostname)
+{
+  char*  defaultConfigFile = (char*)FLAGS_config.c_str();
+  string defaultContents = get_file_contents(defaultConfigFile);
+  Config* defaultConfig = parse_config_string(defaultContents);
+
+  string hostConfigPath = get_config_path_by_hostname(hostname);
+  char*  hostConfigFile = (char*)hostConfigPath.c_str();
+  string hostContents = get_file_contents(hostConfigFile);
+  Config* hostConfig = parse_config_string(hostContents);
+
+  Config* hostCfg_p = merge_config(defaultConfig, hostConfig);
+  return hostCfg_p;
+}
+
+bool is_host_config(const char *filename)
+{
+  string file = (filename);
+  return (file.find("cephmesos.d") != file.npos) ? true : false;
+}
+
 string get_file_contents(const char *filename)
 {
   ifstream in(filename, ios::in | ios::binary);
-  if (!in)
-  {
-      cout << "[warning] not found file " + string(filename) << endl;
+  if (in){
+      ostringstream contents;
+      contents << in.rdbuf();
+      in.close();
+      return(contents.str());
   }
-  ostringstream contents;
-  contents << in.rdbuf();
-  in.close();
-  return(contents.str());
+  else{
+      if (!is_host_config(filename)){
+          throw(errno);
+      }
+      else{
+          return "";
+      }
+  }
+}
+
+string get_config_path_by_hostname(string hostname)
+{
+  string path;
+  int pathIndex = FLAGS_config.find_last_of('/');
+  
+  if (pathIndex != -1)
+  {
+      path = FLAGS_config.substr(0, pathIndex) + "/";
+  }
+  string configPath = path + "cephmesos.d/" + hostname + ".yml";
+  return configPath;
 }
 
 Config* parse_config_string(string input)
@@ -72,46 +137,7 @@ Config* parse_config_string(string input)
   return cfg_p;
 }
 
-Config* get_config(int* argc, char*** argv)
-{
-  gflags::ParseCommandLineFlags(argc, argv, true);
-
-  char* filename = (char*)FLAGS_config.c_str();
-  string input = get_file_contents(filename);
-  Config* config = parse_config_string(input);
-
-  Config cfg = {
-      (FLAGS_id.empty() ? config->id : FLAGS_id),
-      (FLAGS_role.empty() ? config->role : FLAGS_role),
-      (FLAGS_master.empty() ? config->master : FLAGS_master),
-      (FLAGS_zookeeper.empty() ? config->zookeeper : FLAGS_zookeeper),
-      (FLAGS_restport == 0 ? config->restport : FLAGS_restport),
-      (FLAGS_fileport == 0 ? config->fileport : FLAGS_fileport),
-      (FLAGS_fileroot.empty() ? config->fileroot : FLAGS_fileroot),
-      config->mgmtdev,
-      config->datadev,
-      config->osddevs,
-      config->jnldevs,
-  };
-  Config* cfg_p = new Config(cfg);
-  free(config);
-  return cfg_p;
-}
-
-string get_config_path_by_hostname(string hostname)
-{
-  string path;
-  int pathIndex = FLAGS_config.find_last_of('/');
-  
-  if (pathIndex != -1)
-  {
-      path = FLAGS_config.substr(0, pathIndex) + "/";
-  }
-  string configPath = path + "cephmesos.d/" + hostname + ".yml";
-  return configPath;
-}
-
-Config* merge_config(Config* defaultConfig , Config* hostConfig)
+Config* merge_config(Config* defaultConfig, Config* hostConfig)
 {
   Config config = {
       FLAGS_id,
@@ -130,19 +156,4 @@ Config* merge_config(Config* defaultConfig , Config* hostConfig)
   free(defaultConfig);
   free(hostConfig);
   return  config_p;
-}
-
-Config* get_config_by_hostname(string hostname)
-{
-  char*  defaultConfigFile = (char*)FLAGS_config.c_str();
-  string defaultContents = get_file_contents(defaultConfigFile);
-  Config* defaultConfig = parse_config_string(defaultContents);
-
-  string hostConfigPath = get_config_path_by_hostname(hostname);
-  char*  hostConfigFile = (char*)hostConfigPath.c_str();
-  string hostContents = get_file_contents(hostConfigFile);
-  Config* hostConfig = parse_config_string(hostContents);
-
-  Config* hostCfg_p = merge_config(defaultConfig, hostConfig);
-  return hostCfg_p;
 }
