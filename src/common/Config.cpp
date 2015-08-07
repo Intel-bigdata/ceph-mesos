@@ -57,6 +57,15 @@ Config* get_config(int* argc, char*** argv)
       config->osddevs,
       config->jnldevs,
   };
+  if (cfg.id.empty() ||
+    cfg.role.empty() ||
+    cfg.master.empty() ||
+    cfg.zookeeper.empty() ||
+    cfg.restport == 0 ||
+    cfg.fileport == 0 ||
+    cfg.fileroot.empty()){
+      throw (errno);
+  }
   Config* cfg_p = new Config(cfg);
   free(config);
   return cfg_p;

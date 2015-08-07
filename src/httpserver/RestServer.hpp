@@ -22,8 +22,8 @@
 #include <string>
 #include <sstream>
 #include <iostream>
-#include <zmq.hpp>
 #include "common/JsonUtil.hpp"
+#include <boost/interprocess/ipc/message_queue.hpp>
 
 extern "C"
 {
@@ -31,8 +31,7 @@ extern "C"
 }
 
 using namespace std;
-
-extern zmq::context_t context;
+using namespace boost::interprocess;
 
 class RestServer
 {
