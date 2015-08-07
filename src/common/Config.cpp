@@ -37,42 +37,6 @@ DEFINE_int32(restport, 0, "The REST API server port");
 DEFINE_int32(fileport, 0, "The static file server port");
 DEFINE_string(fileroot, "", "The static file server rootdir");
 
-string get_file_contents(const char *filename)
-{
-  ifstream in(filename, ios::in | ios::binary);
-  if (in)
-  {
-    ostringstream contents;
-    contents << in.rdbuf();
-    in.close();
-    return(contents.str());
-  }
-  throw(errno);
-}
-
-Config* parse_config_string(string input)
-{
-  YAML::Node config = YAML::Load(input);
-  string empty_s;
-  int empty_i = -1;
-  vector<string> empty_v;
-  Config cfg = {
-      (config["id"] ? config["id"].as<string>() : empty_s),
-      (config["role"] ? config["role"].as<string>() : empty_s),
-      (config["master"] ? config["master"].as<string>() : empty_s),
-      (config["zookeeper"] ? config["zookeeper"].as<string>() : empty_s),
-      (config["restport"] ? config["restport"].as<int>() : empty_i),
-      (config["fileport"] ? config["fileport"].as<int>() : empty_i),
-      (config["fileroot"] ? config["fileroot"].as<string>() : empty_s),
-      (config["mgmtdev"] ? config["mgmtdev"].as<string>() : empty_s),
-      (config["datadev"] ? config["datadev"].as<string>() : empty_s),
-      (config["osddevs"] ? config["osddevs"].as<vector<string>>() : empty_v),
-      (config["jnldevs"] ? config["jnldevs"].as<vector<string>>() : empty_v),
-  };
-  Config* cfg_p = new Config(cfg);
-  return cfg_p;
-}
-
 Config* get_config(int* argc, char*** argv)
 {
   gflags::ParseCommandLineFlags(argc, argv, true);
@@ -80,7 +44,6 @@ Config* get_config(int* argc, char*** argv)
   char* filename = (char*)FLAGS_config.c_str();
   string input = get_file_contents(filename);
   Config* config = parse_config_string(input);
-
   Config cfg = {
       (FLAGS_id.empty() ? config->id : FLAGS_id),
       (FLAGS_role.empty() ? config->role : FLAGS_role),
@@ -99,37 +62,6 @@ Config* get_config(int* argc, char*** argv)
   return cfg_p;
 }
 
-string get_config_path_by_hostname(string hostname)
-{
-  int pathIndex = FLAGS_config.find_last_of('.');
-  string path = FLAGS_config.substr(0, pathIndex);
-  string configPath = path + ".d/" + hostname + ".yml";
-  return configPath;
-}
-
-Config* merge_config(Config* defaultConfig , Config* hostConfig)
-{
-  string empty_s;
-  int empty_i = -1;
-  Config config = {
-      empty_s,
-      empty_s,
-      empty_s,
-      empty_s,
-      empty_i,
-      empty_i,
-      empty_s,
-      (hostConfig->mgmtdev.empty() ? defaultConfig->mgmtdev : hostConfig->mgmtdev),
-      (hostConfig->datadev.empty() ? defaultConfig->datadev : hostConfig->datadev),
-      (hostConfig->osddevs.empty() ? defaultConfig->osddevs : hostConfig->osddevs),
-      (hostConfig->jnldevs.empty() ? defaultConfig->jnldevs : hostConfig->jnldevs),
-  };
-  Config* config_p = new Config(config);
-  free(defaultConfig);
-  free(hostConfig);
-  return  config_p;
-}
-
 Config* get_config_by_hostname(string hostname)
 {
   char*  defaultConfigFile = (char*)FLAGS_config.c_str();
@@ -143,4 +75,85 @@ Config* get_config_by_hostname(string hostname)
 
   Config* hostCfg_p = merge_config(defaultConfig, hostConfig);
   return hostCfg_p;
+}
+
+bool is_host_config(const char *filename)
+{
+  string file = (filename);
+  return (file.find("cephmesos.d") != file.npos) ? true : false;
+}
+
+string get_file_contents(const char *filename)
+{
+  ifstream in(filename, ios::in | ios::binary);
+  if (in){
+      ostringstream contents;
+      contents << in.rdbuf();
+      in.close();
+      return(contents.str());
+  }
+  else{
+      if (!is_host_config(filename)){
+          throw(errno);
+      }
+      else{
+          return "";
+      }
+  }
+}
+
+string get_config_path_by_hostname(string hostname)
+{
+  string path;
+  int pathIndex = FLAGS_config.find_last_of('/');
+  
+  if (pathIndex != -1)
+  {
+      path = FLAGS_config.substr(0, pathIndex) + "/";
+  }
+  string configPath = path + "cephmesos.d/" + hostname + ".yml";
+  return configPath;
+}
+
+Config* parse_config_string(string input)
+{
+  YAML::Node config = YAML::Load(input);
+  string empty_s;
+  vector<string> empty_v;
+  Config cfg = {
+      (config["id"] ? config["id"].as<string>() : FLAGS_id),
+      (config["role"] ? config["role"].as<string>() : FLAGS_role),
+      (config["master"] ? config["master"].as<string>() : FLAGS_master),
+      (config["zookeeper"] ? config["zookeeper"].as<string>() : FLAGS_zookeeper),
+      (config["restport"] ? config["restport"].as<int>() : FLAGS_restport),
+      (config["fileport"] ? config["fileport"].as<int>() : FLAGS_fileport),
+      (config["fileroot"] ? config["fileroot"].as<string>() : FLAGS_fileroot),
+      (config["mgmtdev"] ? config["mgmtdev"].as<string>() : empty_s),
+      (config["datadev"] ? config["datadev"].as<string>() : empty_s),
+      (config["osddevs"] ? config["osddevs"].as<vector<string>>() : empty_v),
+      (config["jnldevs"] ? config["jnldevs"].as<vector<string>>() : empty_v),
+  };
+  Config* cfg_p = new Config(cfg);
+  return cfg_p;
+}
+
+Config* merge_config(Config* defaultConfig, Config* hostConfig)
+{
+  Config config = {
+      FLAGS_id,
+      FLAGS_role,
+      FLAGS_master,
+      FLAGS_zookeeper,
+      FLAGS_restport,
+      FLAGS_fileport,
+      FLAGS_fileroot,
+      (hostConfig->mgmtdev.empty() ? defaultConfig->mgmtdev : hostConfig->mgmtdev),
+      (hostConfig->datadev.empty() ? defaultConfig->datadev : hostConfig->datadev),
+      (hostConfig->osddevs.empty() ? defaultConfig->osddevs : hostConfig->osddevs),
+      (hostConfig->jnldevs.empty() ? defaultConfig->jnldevs : hostConfig->jnldevs),
+  };
+  Config* config_p = new Config(config);
+  free(defaultConfig);
+  free(hostConfig);
+  return  config_p;
 }
