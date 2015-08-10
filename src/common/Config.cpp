@@ -25,6 +25,7 @@
 
 #include <gflags/gflags.h>
 #include <yaml-cpp/yaml.h>
+#include <stdexcept>
 
 using namespace std;
 
@@ -57,6 +58,15 @@ Config* get_config(int* argc, char*** argv)
       config->osddevs,
       config->jnldevs,
   };
+  if (cfg.id.empty() ||
+    cfg.role.empty() ||
+    cfg.master.empty() ||
+    cfg.zookeeper.empty() ||
+    cfg.restport == 0 ||
+    cfg.fileport == 0 ||
+    cfg.fileroot.empty()){
+      throw std::invalid_argument("Invalid value in default YAML config file.");
+  }
   Config* cfg_p = new Config(cfg);
   free(config);
   return cfg_p;
@@ -80,7 +90,7 @@ Config* get_config_by_hostname(string hostname)
 bool is_host_config(const char *filename)
 {
   string file = (filename);
-  return (file.find("cephmesos.d") != file.npos) ? true : false;
+  return (file.find(hostConfigFolder) != file.npos) ? true : false;
 }
 
 string get_file_contents(const char *filename)
@@ -94,7 +104,7 @@ string get_file_contents(const char *filename)
   }
   else{
       if (!is_host_config(filename)){
-          throw(errno);
+          throw std::invalid_argument("Default YAML config file does not exist.");
       }
       else{
           return "";
@@ -111,7 +121,7 @@ string get_config_path_by_hostname(string hostname)
   {
       path = FLAGS_config.substr(0, pathIndex) + "/";
   }
-  string configPath = path + "cephmesos.d/" + hostname + ".yml";
+  string configPath = path + hostConfigFolder + "/" + hostname + ".yml";
   return configPath;
 }
 
