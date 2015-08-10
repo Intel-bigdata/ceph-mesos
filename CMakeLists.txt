@@ -86,6 +86,17 @@ if (PTHREAD_LIB MATCHES PTHREAD_LIB-NOTFOUND)
     MESSAGE(FATAL_ERROR "pthread not found")
 endif()
 
+find_library(
+    RT_LIB
+    rt
+    DOC "rt library"
+)
+
+if (RT_LIB MATCHES RT_LIB-NOTFOUND)
+    MESSAGE(FATAL_ERROR "rt not found")
+
+endif()
+
 # CXX Flags
 add_definitions(-std=c++11)
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -pedantic")
@@ -124,8 +135,8 @@ target_link_libraries(ceph-mesos
     ${MICROHTTPD_LIB}
     ${MESOS_LIB}
     ${JSONCPP_LIB}
-    /lib64/libpthread.so.0
-    /lib64/librt.so.1
+    ${PTHREAD_LIB}
+    ${RT_LIB}
 )
 add_custom_command(TARGET ceph-mesos POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -150,7 +161,7 @@ target_include_directories(ceph-mesos-tests PUBLIC
 )
 target_link_libraries(ceph-mesos-tests
     ${GTEST_LIB}
-    ${PTHREAD}
+    ${PTHREAD_LIB}
     ${GFLAGS_LIB}
     ${YAMLCPP_LIB}
 )
