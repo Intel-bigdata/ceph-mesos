@@ -10,7 +10,8 @@ Goal & Roadmap
 Scaling and monitoring large Ceph cluster in production Mesos environment in an easy way is our goal. And it's in progress. Check below for updates ( Your ideas are welcome ).
 - [x] Multiple OSDs on one disk
 - [x] Multiple OSDs on dedicated disks
-- [ ] Journals on dedicated disks
+- [x] Journals on dedicated disks
+- [ ] Public and cluster network
 - [ ] Flexdown OSD
 - [ ] Launch RBD, MDS
 - [ ] TBD
@@ -18,9 +19,8 @@ Scaling and monitoring large Ceph cluster in production Mesos environment in an 
 Prerequisites
 --------------------------
 1. A Mesos cluster with Docker installed (duh). We only support CentOS 7 distribution at present and requires at least <b><em>1</em></b> slave
-2. DHCP service configured since ceph-Mesos use Macvlan to assign IP to containers
-3. Slaves in Mesos have network connection to download Docker images
-4. Install libmicrohttpd in all slaves
+2. Slaves in Mesos have network connection to download Docker images
+3. Install libmicrohttpd in all slaves
 ```sh
 yum -y install libmicrohttpd
 ```
@@ -74,38 +74,33 @@ After that, you'll see "ceph-mesos", "ceph-mesos-executor", "ceph-mesos-tests" ,
 
 Run Ceph-Mesos
 --------------------------
-Configure the cephmesos.yml and cephmesos.d/{hostname}.yml before you go.
+Configure the cephmesos.yml and cephmesos.d/{hostname}.yml before you go if you want Ceph-Mesos to prepare the disks.
 
-Ceph-Mesos chooses Macvlan to assign different IPs( DHCP needed) for OSDs in same host to work around the issue 19 mentioned in ceph-docker.And it supports disk management now. It can partition, mkfs.xfs and mount the disks for you.
+Ceph-Mesos needs to know which disks are avlaible for OSD launching. Here comes cephmesos.yml and cephmesos.d/{hostname}.yml. Cephmesos.yml is for common subset settings of hosts and cephmesos.d/{hostname}.yml is particular settings of a dedicated host. Once the osddevs and jnldevs are populated, Ceph-Mesos will make partitions and filesystem on the disks and bind-mount them for OSD containers to use.
 
-So Ceph-Mesos needs to know which network card link to use and which disks are avlaible for OSD launching. Here comes cephmesos.yml and cephmesos.d/{hostname}.yml. Cephmesos.yml is for common settings of hosts and cephmesos.d/{hostname}.yml is particular settings of a dedicated host.
+For instance, assume we have 5 slaves. 4 of them have same one disk "sdb" when execute "fdisk -l", but slave5 have another "sdc". So we need to create a cephmesos.d/slave5.yml which have addition "sdc" in field "osddevs". In this situation, Ceph-Mesos can use "sdc" to launch containers in slave5, but others only have "sdb".
 
-For instance, assume we have 5 slaves. 4 of them have same network card link name "eno1" when execute "ip a", but slave5 have "eno2". So we need to create a cephmesos.d/slave5.yml which have corret "mgmtdev: eno2" in it. In this situation, Ceph-Mesos will launch containers in slave5 based on "eno2", but others based on "eno1". Disk settings are similar.
-
-And you must populate the master, zookeeper and mgmtdev fields, can leave other field default. Sample configurations are as follows:
+And you must populate the id, role and master field, can leave other field default. Sample configurations are as follows:
 
 cephmesos.yml:
 ```sh
 id:         myceph
 role:       ceph
 master:     zk://mm01:2181,mm02:2181,mm03:2181/mesos
-zookeeper:  zk://mm01:2181,mm02:2181,mm03:2181
+zookeeper:  ""
 restport:   8889
 fileport:   8888
 fileroot:   ./
-mgmtdev:    eno1 #the common network link name used for creating Macvlan device
+mgmtdev:    ""
 datadev:    ""
 osddevs:
   - sdb
-  - sdc
 jnldevs:    []
 ```
 cephmesos.d/slave5.yml:
 ```sh
-mgmtdev:    eno2
 osddevs:
-  - sdd
-  - sde
+  - sdc
 jnldevs:    []
 ```
 
