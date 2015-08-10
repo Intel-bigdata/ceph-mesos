@@ -67,16 +67,6 @@ if (MESOS_LIB MATCHES MESOS_LIB-NOTFOUND)
 endif()
 
 find_library(
-    ZMQ_LIB
-    zmq
-    DOC "A concurrency framework"
-)
-
-if (ZMQ_LIB MATCHES ZMQ_LIB-NOTFOUND)
-    MESSAGE(FATAL_ERROR "zmq not found")
-endif()
-
-find_library(
     GTEST_LIB
     gtest
     DOC "Google's framework for writing C++ tests"
@@ -133,8 +123,9 @@ target_link_libraries(ceph-mesos
     ${YAMLCPP_LIB}
     ${MICROHTTPD_LIB}
     ${MESOS_LIB}
-    ${ZMQ_LIB}
     ${JSONCPP_LIB}
+    /lib64/libpthread.so.0
+    /lib64/librt.so.1
 )
 add_custom_command(TARGET ceph-mesos POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory

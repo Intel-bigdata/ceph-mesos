@@ -31,13 +31,11 @@ string RestServer::jsonCheck(const char* json)
       return string("[error]:profile");
     }
     
-    //zmq flexUp sender
-    zmq::socket_t sender(context, ZMQ_PUSH);
-    sender.connect("inproc://flexUp");
-    int len = strlen(json) + 1;
-    zmq::message_t message(len);
-    snprintf((char*)message.data(), len, "%s", json);
-    sender.send(message);
+    message_queue flexUpMQ
+     (open_only //open or create
+     ,"flexUp"  //name
+     );
+    flexUpMQ.send(json, strlen(json), 0);
     return "[success]";
   } else {
     return string("[error]:json");
