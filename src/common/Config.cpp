@@ -65,7 +65,7 @@ Config* get_config(int* argc, char*** argv)
     cfg.restport == 0 ||
     cfg.fileport == 0 ||
     cfg.fileroot.empty()){
-      throw std::invalid_argument("yml config content error.");
+      throw std::invalid_argument("Invalid value in default YAML config file.");
   }
   Config* cfg_p = new Config(cfg);
   free(config);
@@ -90,7 +90,7 @@ Config* get_config_by_hostname(string hostname)
 bool is_host_config(const char *filename)
 {
   string file = (filename);
-  return (file.find("cephmesos.d") != file.npos) ? true : false;
+  return (file.find(hostConfigFolder) != file.npos) ? true : false;
 }
 
 string get_file_contents(const char *filename)
@@ -104,7 +104,7 @@ string get_file_contents(const char *filename)
   }
   else{
       if (!is_host_config(filename)){
-          throw std::invalid_argument("not found yml config file.");
+          throw std::invalid_argument("Default YAML config file does not exist.");
       }
       else{
           return "";
@@ -121,7 +121,7 @@ string get_config_path_by_hostname(string hostname)
   {
       path = FLAGS_config.substr(0, pathIndex) + "/";
   }
-  string configPath = path + "cephmesos.d/" + hostname + ".yml";
+  string configPath = path + hostConfigFolder + "/" + hostname + ".yml";
   return configPath;
 }
 
