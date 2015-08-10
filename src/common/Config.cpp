@@ -37,6 +37,7 @@ DEFINE_string(zookeeper, "", "Zookeeper uri");
 DEFINE_int32(restport, 0, "The REST API server port");
 DEFINE_int32(fileport, 0, "The static file server port");
 DEFINE_string(fileroot, "", "The static file server rootdir");
+DEFINE_string(hostconfig, "cephmesos.d", "The host config folder");
 
 Config* get_config(int* argc, char*** argv)
 {
@@ -117,12 +118,10 @@ string get_config_path_by_hostname(string hostname)
   string path;
   int pathIndex = FLAGS_config.find_last_of('/');
   
-  if (pathIndex != -1)
-  {
+  if (pathIndex != -1){
       path = FLAGS_config.substr(0, pathIndex) + "/";
   }
   string configPath = path + hostConfigFolder + "/" + hostname + ".yml";
-  return configPath;
 }
 
 Config* parse_config_string(string input)
