@@ -64,7 +64,7 @@ Config* get_config(int* argc, char*** argv)
     cfg.restport == 0 ||
     cfg.fileport == 0 ||
     cfg.fileroot.empty()){
-      throw (errno);
+      throw("yml config content error.");
   }
   Config* cfg_p = new Config(cfg);
   free(config);
@@ -103,7 +103,7 @@ string get_file_contents(const char *filename)
   }
   else{
       if (!is_host_config(filename)){
-          throw(errno);
+          throw("not found yml config file.");
       }
       else{
           return "";
