@@ -22,6 +22,8 @@
 #include <string>
 #include <vector>
 
+const std::string hostConfigFolder = "cephmesos.d";
+
 struct Config
 {
   std::string id;
