@@ -74,8 +74,8 @@ CephScheduler::CephScheduler(Config* _config)
 
 CephScheduler::~CephScheduler()
 {
-  agent = NULL;
   delete agent;
+  agent = NULL;
 }
 
 void CephScheduler::registered(

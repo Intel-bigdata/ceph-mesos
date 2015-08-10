@@ -76,10 +76,10 @@ CephSchedulerAgent::CephSchedulerAgent(Config* _config)
 
 CephSchedulerAgent::~CephSchedulerAgent()
 {
-  stateMachine = NULL;
-  eventLoop = NULL;
   delete stateMachine;
   delete eventLoop;
+  stateMachine = NULL;
+  eventLoop = NULL;
 }
 
 void CephSchedulerAgent::registered(
