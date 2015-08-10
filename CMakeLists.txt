@@ -106,6 +106,7 @@ set(CEPH_MESOS_SCHEDULER_SOURCES
     src/httpserver/FileServer.cpp
     src/httpserver/RestServer.cpp
     src/scheduler/CephScheduler.cpp
+    src/scheduler/CephSchedulerAgent.cpp
     src/scheduler/EventLoop.cpp
     src/state/StateMachine.cpp
 )
