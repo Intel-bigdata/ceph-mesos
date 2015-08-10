@@ -27,7 +27,14 @@
 zmq::context_t context(1);
 
 int main(int argc, char* argv[]) {
-    Config* config = get_config(&argc, &argv);
+    Config* config;
+    try{
+       config = get_config(&argc, &argv);
+    }
+    catch(char const* strException){
+      LOG(ERROR) <<"[Error Quit]: "<<strException<<endl;
+      return 0;
+    }
     thread fileServerThread(fileServer,config->fileport,config->fileroot);
     thread restServerThread(restServer,config->restport);
     thread frameworkThread(framework, config);
