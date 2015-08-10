@@ -17,14 +17,10 @@
  */
 
 #include <thread>
-#include <zmq.hpp>
-
 #include "httpserver/FileServer.hpp"
 #include "httpserver/RestServer.hpp"
 #include "scheduler/CephScheduler.hpp"
 #include "common/Config.hpp"
-
-zmq::context_t context(1);
 
 int main(int argc, char* argv[]) {
     Config* config;
