@@ -57,6 +57,15 @@ Config* get_config(int* argc, char*** argv)
       config->osddevs,
       config->jnldevs,
   };
+  if (cfg.id.empty() ||
+    cfg.role.empty() ||
+    cfg.master.empty() ||
+    cfg.zookeeper.empty() ||
+    cfg.restport == 0 ||
+    cfg.fileport == 0 ||
+    cfg.fileroot.empty()){
+      throw("yml config content error.");
+  }
   Config* cfg_p = new Config(cfg);
   free(config);
   return cfg_p;
@@ -94,7 +103,7 @@ string get_file_contents(const char *filename)
   }
   else{
       if (!is_host_config(filename)){
-          throw(errno);
+          throw("not found yml config file.");
       }
       else{
           return "";
