@@ -33,19 +33,21 @@ EventLoop::~EventLoop()
 
 void EventLoop::recvData()
 {
-  zmq::socket_t receiver(context, ZMQ_PULL);
-  receiver.bind("inproc://flexUp");
+  message_queue flexUpMQ
+   (open_or_create  //open or create
+   ,"flexUp"        //name
+   ,1014            //max message number
+   ,256             //max message size
+   );
   try{
     while (loopTag) {
-      zmq::message_t message;
-      string event_data;
-      receiver.recv(&message);
-      istringstream iss(static_cast<char*>(message.data()));
-      iss >> event_data;
-      LOG(INFO) << "EventLoop.recvData got flexUp data";
-      processData(event_data);
+      char event_data[256];
+      message_queue::size_type recvd_size;
+      unsigned int priority;
+      if (flexUpMQ.try_receive(&event_data, sizeof(event_data), recvd_size, priority)){
+          processData(string(event_data));
+      }
     }
-    receiver.close();
   } catch (const std::exception& e){
     LOG(INFO) << "EventLoop.recvData " << e.what();
   }
