@@ -22,12 +22,12 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <zmq.hpp>
 #include <vector>
 #include <exception>
 #include <thread>
 #include <glog/logging.h>
 #include "common/JsonUtil.hpp"
+#include <boost/interprocess/ipc/message_queue.hpp>
 
 using std::string;
 using std::vector;
@@ -36,8 +36,7 @@ using std::cout;
 using std::endl;
 using std::istringstream;
 using std::exception;
-
-extern zmq::context_t context;
+using namespace boost::interprocess;
 
 class EventLoop
 {
