@@ -37,7 +37,6 @@ DEFINE_string(zookeeper, "", "Zookeeper uri");
 DEFINE_int32(restport, 0, "The REST API server port");
 DEFINE_int32(fileport, 0, "The static file server port");
 DEFINE_string(fileroot, "", "The static file server rootdir");
-DEFINE_string(hostconfig, "cephmesos.d", "The host config folder");
 
 Config* get_config(int* argc, char*** argv)
 {
