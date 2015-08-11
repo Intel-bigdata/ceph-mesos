@@ -459,7 +459,7 @@ bool CephExecutor::partitionDisk(string diskname, int partitionCount)
   string disksize = runShellCommand(cmd);
   LOG(INFO)<<"disksize: "<<disksize;
   //TODO: support multiple partitions
-  cmd = "parted "+diskpath+" mkpart data 0 " + disksize +
+  cmd = "parted "+diskpath+" mkpart data 1 " + disksize +
       " &>/dev/null 2>/dev/null";
   LOG(INFO) << "parted mkpart..( "<<cmd<<" )";
   runShellCommand(cmd);
