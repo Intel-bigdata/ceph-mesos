@@ -18,15 +18,12 @@
 
 #include "gmock/gmock.h"
 #include "httpserver/RestServer.hpp"
-#include <zmq.hpp>
 
 #define private public
 #define protected public
 
 using namespace std;
 using namespace testing;
-
-zmq::context_t context(1);
 
 class AnRestServer : public Test {
 public:
