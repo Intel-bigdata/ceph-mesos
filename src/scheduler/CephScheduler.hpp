@@ -69,7 +69,7 @@ public:
 
 private:
 
-  CephSchedulerAgent* agent;
+  CephSchedulerAgent<SchedulerDriver>* agent;
 };
 
 int framework(Config* config);
