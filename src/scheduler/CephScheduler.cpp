@@ -68,7 +68,7 @@ void CephScheduler::error(
 
 CephScheduler::CephScheduler(Config* _config)
 {
-  agent = new CephSchedulerAgent(_config);
+  agent = new CephSchedulerAgent<SchedulerDriver>(_config);
 }
 
 

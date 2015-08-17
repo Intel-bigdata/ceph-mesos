@@ -107,7 +107,6 @@ set(CEPH_MESOS_SCHEDULER_SOURCES
     src/httpserver/FileServer.cpp
     src/httpserver/RestServer.cpp
     src/scheduler/CephScheduler.cpp
-    src/scheduler/CephSchedulerAgent.cpp
     src/scheduler/EventLoop.cpp
     src/state/StateMachine.cpp
 )
@@ -121,6 +120,14 @@ set(CEPH_MESOS_TEST_SOURCES
     src/tests/main.cpp
     src/tests/ConfigTest.cpp
     src/common/Config.cpp
+    /usr/src/gmock/gmock-all.cc
+)
+set(CEPH_MESOS_SCHEDULER_TEST_SOURCES
+    src/tests/main.cpp
+    src/tests/CephSchedulerAgentTest.cpp
+    src/common/Config.cpp
+    src/scheduler/EventLoop.cpp
+    src/state/StateMachine.cpp
     /usr/src/gmock/gmock-all.cc
 )
 
@@ -159,10 +166,26 @@ add_executable(ceph-mesos-tests ${CEPH_MESOS_TEST_SOURCES})
 target_include_directories(ceph-mesos-tests PUBLIC
     ${CMAKE_SOURCE_DIR}/src
 )
+add_executable(ceph-mesos-scheduler-tests ${CEPH_MESOS_SCHEDULER_TEST_SOURCES})
+target_include_directories(ceph-mesos-scheduler-tests PUBLIC
+    ${CMAKE_SOURCE_DIR}/src
+)
+
 target_link_libraries(ceph-mesos-tests
     ${GTEST_LIB}
     ${PTHREAD_LIB}
     ${GFLAGS_LIB}
     ${YAMLCPP_LIB}
 )
+target_link_libraries(ceph-mesos-scheduler-tests
+    ${GTEST_LIB}
+    ${GFLAGS_LIB}
+    ${YAMLCPP_LIB}
+    ${MESOS_LIB}
+    ${JSONCPP_LIB}
+    ${PTHREAD_LIB}
+    ${RT_LIB}
+)
+
 add_test(config-tests ceph-mesos-tests)
+add_test(scheduler-tests ceph-mesos-scheduler-tests)
