@@ -1,15 +1,15 @@
 Ceph on Apache Mesos
 ======================
 A Mesos framework utilizing Docker for scaling a Ceph cluster. It aims to be a fast and reliable solution.  
-For now, it can only: 
-  - Start 1 mon, 3 osd, 1 radosgw. Each on a slave. Based on [ceph-docker]
-  - Accept Restful flexup request for launching a new osd to a new slave
+For now, it can only:
+  - Start 1 mon, 3 osd, 1 radosgw. Based on [ceph-docker]
+  - Accept RESTful flexup request for launching a new osd
 
 Goal & Roadmap
 --------------------------
 Scaling and monitoring large Ceph cluster in production Mesos environment in an easy way is our goal. And it's in progress. Check below for updates ( Your ideas are welcome ).
-- [ ] Multiple OSDs on one disk
-- [ ] Multiple OSDs on dedicated disks
+- [x] Multiple OSDs on one disk
+- [x] Multiple OSDs on dedicated disks
 - [ ] Journals on dedicated disks
 - [ ] Flexdown OSD
 - [ ] Launch RBD, MDS
@@ -17,9 +17,10 @@ Scaling and monitoring large Ceph cluster in production Mesos environment in an 
 
 Prerequisites
 --------------------------
-1. A Mesos cluster with Docker installed (duh). We only support CentOS 7 distribution at present and requires at least <b><em>5</em></b> slaves.
-2. Slaves in Mesos have network connection to download Docker images
-3. install libmicrohttpd in all slaves.
+1. A Mesos cluster with Docker installed (duh). We only support CentOS 7 distribution at present and requires at least <b><em>1</em></b> slave
+2. DHCP service configured since ceph-Mesos use Macvlan to assign IP to containers
+3. Slaves in Mesos have network connection to download Docker images
+4. Install libmicrohttpd in all slaves
 ```sh
 yum -y install libmicrohttpd
 ```
@@ -31,7 +32,7 @@ Pick a host to setup the build environment. Make sure the host can access your M
 sudo rpm -Uvh http://repos.mesosphere.io/el/7/noarch/RPMS/mesosphere-el-repo-7-1.noarch.rpm
 sudo yum install -y epel-release
 sudo yum groupinstall -y "Development Tools"
-sudo yum install -y cmake mesos protobuf-devel boost-devel gflags-devel glog-devel yaml-cpp-devel  jsoncpp-devel libmicrohttpd-devel zeromq3-devel gmock-devel gtest-devel
+sudo yum install -y cmake mesos protobuf-devel boost-devel gflags-devel glog-devel yaml-cpp-devel  jsoncpp-devel libmicrohttpd-devel gmock-devel gtest-devel
 ```
 Then clone ceph-mesos and build.
 ```sh
@@ -46,12 +47,40 @@ After that, you'll see "ceph-mesos", "ceph-mesos-executor", "ceph-mesos-tests" ,
 
 Run Ceph-Mesos
 --------------------------
-Modify the cephmesos.yml, you must populate the master and zookeeper fields, can leave other field default:
+Configure the cephmesos.yml and cephmesos.d/{hostname}.yml before you go.
+
+Ceph-Mesos chooses Macvlan to assign different IPs( DHCP needed) for OSDs in same host to work around the issue 19 mentioned in ceph-docker.And it supports disk management now. It can partition, mkfs.xfs and mount the disks for you.
+
+So Ceph-Mesos needs to know which network card link to use and which disks are avlaible for OSD launching. Here comes cephmesos.yml and cephmesos.d/{hostname}.yml. Cephmesos.yml is for common settings of hosts and cephmesos.d/{hostname}.yml is particular settings of a dedicated host.
+
+For instance, assume we have 5 slaves. 4 of them have same network card link name "eno1" when execute "ip a", but slave5 have "eno2". So we need to create a cephmesos.d/slave5.yml which have corret "mgmtdev: eno2" in it. In this situation, Ceph-Mesos will launch containers in slave5 based on "eno2", but others based on "eno1". Disk settings are similar.
+
+And you must populate the master, zookeeper and mgmtdev fields, can leave other field default. Sample configurations are as follows:
+
+cephmesos.yml:
 ```sh
 master:     zk://mm01:2181,mm02:2181,mm03:2181/mesos
 zookeeper:  zk://mm01:2181,mm02:2181,mm03:2181
+restport:   8889
+fileport:   8888
+fileroot:   ./
+mgmtdev:    eno1 #the common network link name used for creating Macvlan device
+datadev:    ""
+osddevs:
+  - sdb
+  - sdc
+jnldevs:    []
 ```
-And start ceph-mesos using below command:
+cephmesos.d/slave5.yml:
+```sh
+mgmtdev:    eno2
+osddevs:
+  - sdd
+  - sde
+jnldevs:    []
+```
+
+After finishing all these configurations, we can start ceph-mesos using below command:
 ```sh
 ./ceph-mesos -config cephmesos.yml
 ```
