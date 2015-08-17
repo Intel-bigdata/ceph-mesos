@@ -63,7 +63,7 @@ Launch new OSD(s)
 --------------------------
 ceph-mesos can accept json format request and start new OSD(s) if there are available hosts.
 ```sh
-curl -d '{"instances":2,"profile":"osd"}' http://ceph_scheduler_host:8889
+curl -d '{"instances":2,"profile":"osd"}' http://ceph_scheduler_host:8889/api/cluster/flexup
 ```
 
 Verify your Ceph cluster
