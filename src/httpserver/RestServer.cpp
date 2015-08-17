@@ -55,6 +55,9 @@ int RestServer::rest_request(
   if (0 != strcmp(method, MHD_HTTP_METHOD_POST)) {
     return MHD_NO;              /* unexpected method */
   }
+  if (0 != strcmp(url, "/api/cluster/flexup")) {
+    return MHD_HTTP_NOT_FOUND;
+  }
   struct MHD_Response *response;
   string content_type = "text/plain";
   int ret;
