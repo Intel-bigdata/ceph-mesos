@@ -33,7 +33,6 @@ EventLoop::~EventLoop()
 
 void EventLoop::recvData()
 {
-  message_queue::remove("flexUp");
   message_queue flexUpMQ
    (open_or_create  //open or create
    ,"flexUp"        //name
