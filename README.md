@@ -24,6 +24,33 @@ Prerequisites
 ```sh
 yum -y install libmicrohttpd
 ```
+**Mesos Resource Configuration(Optional)**
+
+Ceph-Mesos supports "role" setting so you can constrain ceph cluster's resource through Mesos's role or resource configuration. For instance, you want 10 slaves in the Mesos cluster to be role "ceph" in order to deploy ceph-mesos on them.
+
+* In cephmesos.yml, fill "ceph" in role field
+* On mesos master hosts
+```sh
+#if no other existing roles, just echo ceph > /etc/mesos-master/roles
+echo ",ceph" >> /etc/mesos-master/roles
+sudo service mesos-master restart
+```
+* On each slave where you want it to be role "ceph", set role for it and remove the old task state
+```sh
+echo ceph > /etc/mesos-slave/default_role
+sudo service mesos-slave stop
+rm -f /tmp/mesos/meta/slaves/latest
+sudo service mesos-slave start
+```
+With such Mesos configuration, ceph-mesos can only accept offers from the 10 hosts that have the role "ceph".
+
+**NOTE:** You can also set "resource" configuration instead of "role" to reserve resources
+```sh
+echo "cpus(*):8;cpus(ceph):4;mem(*):16384;mem(ceph):8192" > /etc/mesos-slave/resources
+```
+Detailed configurations please refer to:  
+https://open.mesosphere.com/reference/mesos-master/  
+https://open.mesosphere.com/reference/mesos-slave/
 
 Build Ceph-Mesos
 --------------------------
@@ -59,6 +86,8 @@ And you must populate the master, zookeeper and mgmtdev fields, can leave other 
 
 cephmesos.yml:
 ```sh
+id:         myceph
+role:       ceph
 master:     zk://mm01:2181,mm02:2181,mm03:2181/mesos
 zookeeper:  zk://mm01:2181,mm02:2181,mm03:2181
 restport:   8889
