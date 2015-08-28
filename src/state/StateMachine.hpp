@@ -82,7 +82,7 @@ public:
 
   void addConfig(string hostname);
 
-  HostConfig getConfig(string hostname);
+  HostConfig* getConfig(string hostname);
 
 private:
   unordered_map<std::string, ceph::TaskState> taskMap;

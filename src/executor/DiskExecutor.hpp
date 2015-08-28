@@ -16,20 +16,22 @@
  * limitations under the License.
  */
 
-#ifndef _CEPHMESOS_EXECUTOR_CEPHEXECUTOR_HPP_
-#define _CEPHMESOS_EXECUTOR_CEPHEXECUTOR_HPP_
+#ifndef _CEPHMESOS_EXECUTOR_DISKEXECUTOR_HPP_
+#define _CEPHMESOS_EXECUTOR_DISKEXECUTOR_HPP_
 
 #include <mesos/executor.hpp>
+#include <vector>
 
 using std::string;
+using std::vector;
 using namespace mesos;
 
-class CephExecutor : public Executor
+class DiskExecutor : public Executor
 {
 public:
-  CephExecutor(){}
+  DiskExecutor(){}
 
-  ~CephExecutor(){}
+  ~DiskExecutor(){}
 
   void registered(
       ExecutorDriver* driver,
@@ -54,68 +56,35 @@ public:
 private:
   string runShellCommand(string cmd);
 
-  void deleteConfigDir(string localSharedConfigDir);
+  void prepareDisks();
 
-  bool existsConfigFiles(string localSharedConfigDir);
+  void partitionDisk(string diskname, int partitionCount, string partitionLabel);
 
-  bool createLocalSharedConfigDir(string localSharedConfigDir);
+  void mkfsDisk(string diskname, string type, string flags);
 
-  bool copyWaitingNICEntryPoint(string localSharedConfigDir);
+  bool checkSuccess(string diskname, int partitionCount, string partitionLabel);
 
-  bool copySharedConfigFiles(string localSharedConfigDir);
+  string prepareReturnValue();
 
-  string getContainerName(string taskId);
-
-  string constructMonCommand(
-      string localMountDir,
-      string _containerName);
-
-  string registerOSD();
-
-  string constructOSDCommand(
-      string localMountDir,
-      string osdId,
-      string _containerName);
-
-  string constructRADOSGWCommand(
-      string localMountDir,
-      string _containerName);
-
-  bool block_until_started(string _containerName, string timeout);
-
-  bool createNICs(string _containerName, string physicalNIC, string containerNIC);
-
-  void startLongRunning(string binaryName, string cmd);
-
-  bool downloadDockerImage(string imageName);
-
-  bool parseHostConfig(TaskInfo taskinfo);
-
-  bool prepareDisks();
-
-  bool mountDisk(string diskname, string dir, string flags);
-
-  string containerName;
+  bool addPendingDisks(TaskInfo task);
 
   TaskID myTaskId;
 
   string myHostname;
 
-  pid_t myPID;
+  vector<string> pendingOSDDevs;
 
-  string localSharedConfigDirRoot;
-  string localConfigDirName = "ceph_config_root";
-  string sandboxAbsolutePath;
-  string localMountOSDDir = "";
-  string localMountJNLDir = "";
-  //host hardware info
-  string mgmtNIC;
-  string dataNIC;
-  string osddisk;
-  string jnldisk;
+  vector<string> pendingJNLDevs;
+
+  vector<string> failedOSDDevs;
+
+  vector<string> failedJNLDevs;
+
+  int jnlPartitionCount = 4;
+
   string fsType = "xfs";
+
   string mkfsFLAGS = " -f -i size=2048 -n size=64k";
-  string mountFLAGS = " -o inode64,noatime,logbsize=256k";
 };
 
 #endif

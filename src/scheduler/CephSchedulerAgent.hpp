@@ -113,6 +113,11 @@ private:
       string& taskId,
       string& executorId);
 
+  void tryLaunchDiskTask(
+      T* driver,
+      const Offer& offer,
+      string hostname);
+
   Config* config;
   StateMachine* stateMachine;
   EventLoop* eventLoop;
@@ -212,6 +217,27 @@ void CephSchedulerAgent<T>::statusUpdate(
     LOG(INFO) << taskId << " failed";
     stateMachine->updateTaskToFailed(taskId);
     //TODO: if has message , add the OSD ID back to StateMachine
+  } else if (status.state() == TASK_FINISHED) {
+    //only disk executor will have this finished status
+    if (status.has_message()){
+      vector<string> tokens = StringUtil::explode(status.message(), '.');
+      if ((MessageToScheduler)lexical_cast<int>(tokens[0])
+          == MessageToScheduler::DISK_READY
+          ){
+        string failedDevsStr = tokens[1];
+        LOG(INFO) << "Got message of \"DISK_READY\": "<<failedDevsStr;
+        vector<string> failedDevs = StringUtil::explode(failedDevsStr, ':');
+        string hostname = failedDevs[0];
+        vector<string> devs; 
+        if ("-" != failedDevs[1]) {
+          vector<string> devs = StringUtil::explode(failedDevs[1], ',');
+        }
+        HostConfig* hostconfig = stateMachine->getConfig(hostname);
+        //TODO: get this "4" from yml config
+        hostconfig->updateDiskPartition(devs,lexical_cast<int>("4"));
+        hostconfig->setDiskPreparationDone();
+      }
+    }
   }
 }
 
@@ -255,6 +281,7 @@ void CephSchedulerAgent<T>::resourceOffers(
     }
     //reload or new hostconfig
     stateMachine->addConfig(offer.hostname());
+    tryLaunchDiskTask(driver, offer, offer.hostname());
     bool accept = stateMachine->nextMove(taskType,token,offer.hostname());
     if (!accept) {
       LOG(INFO) << "In the "
@@ -387,25 +414,25 @@ string CephSchedulerAgent<T>::createExecutor(
 template <class T>
 void CephSchedulerAgent<T>::addHostConfig(TaskInfo &taskinfo, TaskType taskType, string hostname)
 {
-  HostConfig hostconfig = stateMachine->getConfig(hostname);
+  HostConfig* hostconfig = stateMachine->getConfig(hostname);
   Labels labels;
   //mgmt NIC name
   Label* one_label = labels.add_labels();
   one_label->set_key(CustomData::mgmtdevKey);
-  one_label->set_value(hostconfig.getMgmtDev());
+  one_label->set_value(hostconfig->getMgmtDev());
   //data NIC name
   one_label = labels.add_labels();
   one_label->set_key(CustomData::datadevKey);
-  one_label->set_value(hostconfig.getDataDev());
+  one_label->set_value(hostconfig->getDataDev());
   if (TaskType::OSD == taskType) {
     // osd disk
     one_label = labels.add_labels();
-    string osddisk = hostconfig.popOSDDisk();
+    string osddisk = hostconfig->popOSDPartition();
     one_label->set_key(CustomData::osddevsKey);
     one_label->set_value(osddisk);
     // journal disk
     one_label = labels.add_labels();
-    string journaldisk = hostconfig.popJournalDisk();
+    string journaldisk = hostconfig->popJournalPartition();
     one_label->set_key(CustomData::jnldevsKey);
     one_label->set_value(journaldisk);
   }
@@ -562,6 +589,100 @@ void CephSchedulerAgent<T>::launchNode(
   tasks.push_back(task);
 
   driver->launchTasks(offer.id(), tasks);
+}
+
+template <class T>
+void CephSchedulerAgent<T>::tryLaunchDiskTask(
+    T* driver,
+    const Offer& offer,
+    string hostname)
+{
+  HostConfig* hostconfig = stateMachine->getConfig(hostname);
+  if (hostconfig->isPreparingDisk()) {
+    LOG(INFO) << "Disk executor already running on " << hostname;
+    return;
+  }
+  if (!hostconfig->havePendingOSDDevs() &&
+      !hostconfig->havePendingJNLDevs()) {
+    LOG(INFO) << "No pending raw disks";
+    return;
+  }
+  //launch disk executor to partition the osd and journal disk
+  vector<TaskInfo> tasks;
+  TaskInfo task;
+  if (offerNotEnoughResources(offer, TaskType::OSD)) {
+    LOG(INFO) << "No enough resource to launch disk executor";
+    return;
+  }
+  ExecutorInfo executor;
+  //executor id
+  string binary = "ceph-mesos-disk-executor";
+  time_t timestamp;
+  time(&timestamp);
+  string id = binary + "." + lexical_cast<string>(timestamp);
+  executor.mutable_executor_id()->set_value(id);
+  //binary uri
+  CommandInfo::URI* uri = executor.mutable_command()->add_uris();
+  string binary_uri = "http://"+ getFileServerIP() + ":" +
+    lexical_cast<string>(config->fileport) +
+    "/" + binary;
+  uri->set_value(binary_uri);
+  uri->set_executable(true);
+  //command of run disk executor
+  executor.mutable_command()->set_value( 
+      "./" + binary);
+  executor.set_name(id);
+
+  task.set_name(id);
+  string taskId = task.name() + "."
+      + offer.hostname() + "."
+      + offer.slave_id().value();
+  task.mutable_task_id()->set_value(taskId);
+  task.mutable_slave_id()->MergeFrom(offer.slave_id());
+
+  task.mutable_executor()->MergeFrom(executor);
+
+  //lables indicate the devs to parition
+  Labels labels;
+  //osd devs
+  vector<string>* pendingOSDDevs = hostconfig->getPendingOSDDevs();
+  for (size_t i = 0; i < pendingOSDDevs->size(); i++) {
+    Label* one_label = labels.add_labels();
+    one_label->set_key(CustomData::osddevsKey);
+    one_label->set_value((*pendingOSDDevs)[i]);
+  }
+  //jnl devs
+  vector<string>* pendingJNLDevs = hostconfig->getPendingJNLDevs();
+  for (size_t i = 0; i < pendingJNLDevs->size(); i++) {
+    Label* one_label = labels.add_labels();
+    one_label->set_key(CustomData::jnldevsKey);
+    one_label->set_value((*pendingJNLDevs)[i]);
+  }
+  // jnl partition count
+  //TODO: get this jnl partition count from yml file
+  Label* one_label = labels.add_labels();
+  one_label->set_key(CustomData::jnlPartitionCountKey);
+  one_label->set_value("4");
+  task.mutable_labels()->MergeFrom(labels);
+  //reousrces
+  Resource* resource;
+  resource = task.add_resources();
+  resource->set_name("cpus");
+  resource->set_type(Value::SCALAR);
+  resource->set_role(config->role);
+  resource->mutable_scalar()->set_value(1);
+  resource = task.add_resources();
+  resource->set_name("mem");
+  resource->set_type(Value::SCALAR);
+  resource->set_role(config->role);
+  resource->mutable_scalar()->set_value(256);
+
+  tasks.push_back(task);
+
+  driver->launchTasks(offer.id(), tasks);
+  LOG(INFO) << "launch Disk Executor on " <<offer.hostname();
+  //set state
+  hostconfig->setDiskPreparationOnGoing();
 }
 
 template <class T>

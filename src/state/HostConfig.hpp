@@ -21,11 +21,12 @@
 
 #include <vector>
 #include <glog/logging.h>
-
+#include <boost/lexical_cast.hpp>
 #include "common/Config.hpp"
 
 using std::string;
 using std::vector;
+using boost::lexical_cast;
 
 namespace ceph{
 
@@ -38,6 +39,8 @@ public:
       hostname(_hostname)
   {
     originalConfig = get_config_by_hostname(hostname);
+    pendingOSDDevs = originalConfig->osddevs;
+    pendingJNLDevs = originalConfig->jnldevs;
   }
 
   HostConfig(Config* _config)
@@ -59,43 +62,99 @@ public:
         "; mgmtdev: " + getMgmtDev() +
         "; datadev: " + getDataDev();
     string osds_str = "";
-    vector<string> osds = originalConfig->osddevs;
-    for (size_t i = 0; i < osds.size(); i++) {
-      osds_str = osds_str + osds[i] + ",";
+    for (size_t i = 0; i < pendingOSDDevs.size(); i++) {
+      osds_str = osds_str + pendingOSDDevs[i] + ",";
     }
     string jnls_str = "";
-    vector<string> jnls = originalConfig->jnldevs;
-    for (size_t i = 0; i < jnls.size(); i++) {
-      osds_str = osds_str + jnls[i] + ",";
+    for (size_t i = 0; i < pendingJNLDevs.size(); i++) {
+      osds_str = osds_str + pendingJNLDevs[i] + ",";
     }
-    r = r + "; osdsdev: " + osds_str +
-        " jnldev: " + jnls_str;
+    r = r + "; pendingosdsdev: " + osds_str +
+        " pendingjnldev: " + jnls_str;
+    osds_str = "";
+    for (size_t i = 0; i < osdPartitions.size(); i++) {
+      osds_str = osds_str + osdPartitions[i] + ",";
+    }
+    jnls_str = "";
+    for (size_t i = 0; i < jnlPartitions.size(); i++) {
+      osds_str = osds_str + jnlPartitions[i] + ",";
+    }
+    r = r + "; osdPartitions: " + osds_str +
+        " jnlPartitions: " + jnls_str; 
     return r;
   }
 
-  void reload(){}
-
-  string popOSDDisk()
+  //TODO:implement this to update pending devs
+  void reload()
   {
-    string osddisk = "";
-    vector<string>* osds = &originalConfig->osddevs;
-    if (!osds->empty()) {
-      osddisk = osds->back();
-      osds->pop_back();
-    }
-    return osddisk;
   }
 
-  string popJournalDisk()
+  string popOSDPartition()
   {
-    string jnldisk = "";
-    vector<string>* jnls = &originalConfig->jnldevs;
-    if (!jnls->empty()) {
-      jnldisk = jnls->back();
-      jnls->pop_back();
+    string p = "";
+    if (!osdPartitions.empty()) {
+      p = osdPartitions.back();
+      osdPartitions.pop_back();
     }
-    return jnldisk;
+    return p;
+  }
+
+  string popJournalPartition()
+  {
+    string p = "";
+    if (!jnlPartitions.empty()) {
+      p = jnlPartitions.back();
+      jnlPartitions.pop_back();
+    }
+    return p;
    
+  }
+
+  void updateDiskPartition(vector<string> failedDevs, int jnlPartitionCount)
+  {
+    //osd
+    for (size_t i = 0; i < pendingOSDDevs.size(); i++) {
+      if (contains(failedDevs, pendingOSDDevs[i])) {
+        failedOSDDevs.push_back(pendingOSDDevs[i]);
+        continue;
+      }
+      addOSDPartition(pendingOSDDevs[i] + "1");
+    }
+    //jnl
+    for (size_t i = 0; i < pendingJNLDevs.size(); i++) {
+      if (contains(failedDevs, pendingJNLDevs[i])) {
+        failedJNLDevs.push_back(pendingJNLDevs[i]);
+        continue;
+      }
+      for (int j = 1; j < jnlPartitionCount+1; j++) {
+        addJNLPartition(pendingJNLDevs[i] + lexical_cast<string>(j));
+      }
+    }
+    pendingOSDDevs.clear();
+    pendingJNLDevs.clear();
+  }
+
+  bool contains(vector<string> origin, string searchStr)
+  {
+    if (origin.empty()) {
+      return false;
+    }
+    for (size_t i = 0; i < origin.size(); i++) {
+      if (searchStr == origin[i]) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void addOSDPartition(string par)
+  {
+    osdPartitions.push_back(par);
+  }
+
+  void addJNLPartition(string par)
+  {
+    jnlPartitions.push_back(par);
   }
 
   string getMgmtDev()
@@ -107,8 +166,66 @@ public:
   {
     return originalConfig->datadev;
   }
-  
+
+  bool havePendingOSDDevs()
+  {
+    return !pendingOSDDevs.empty();
+  }
+
+  bool havePendingJNLDevs()
+  {
+    return !pendingJNLDevs.empty();
+  }
+
+  vector<string>* getPendingOSDDevs()
+  {
+    return &pendingOSDDevs;
+  }
+
+  vector<string>* getPendingJNLDevs()
+  {
+    return &pendingJNLDevs;
+  }
+
+  bool isPreparingDisk()
+  {
+    return isPreparingDiskFlag;
+  }
+
+  bool haveDoneDiskPreparation()
+  {
+    return doneDiskPreparationFlag;
+  }
+
+  void setDiskPreparationOnGoing()
+  {
+    isPreparingDiskFlag = true;
+    doneDiskPreparationFlag = false;
+  }
+
+  void setDiskPreparationDone()
+  {
+    isPreparingDiskFlag = false;
+    doneDiskPreparationFlag = true;
+  }
+
 private:
+
+  bool doneDiskPreparationFlag = false;
+
+  bool isPreparingDiskFlag = false;
+
+  vector<string> pendingOSDDevs;
+
+  vector<string> pendingJNLDevs;
+
+  vector<string> failedOSDDevs;
+
+  vector<string> failedJNLDevs;
+
+  vector<string> osdPartitions;
+
+  vector<string> jnlPartitions;
 
   Config* originalConfig;
 

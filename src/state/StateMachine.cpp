@@ -230,6 +230,18 @@ void StateMachine::updateTaskToFailed(string taskId)
 bool StateMachine::nextMove(TaskType& taskType, int& token, string hostName)
 {
   Phase currentPhase = getCurrentPhase();
+  HostConfig* hostconfig = getConfig(hostName);
+  //TODO: 
+  //put the check here will reduce efficiency since a host can launch Disk task and 
+  //all tasks expecpt OSD task in one launchTask(). But if we put this check only in OSD phase,
+  //then we need to add the disk TaskInfo together with other tasks in one
+  //vector<TaskInfo> to use the same offer. Or Mesos will report error that
+  //this offer is invalid since other task have used it.
+  //will implement this later.
+  if (hostconfig->isPreparingDisk()) {
+    LOG(INFO) << hostName << " is preparing disks, need to decline this offer";
+    return false;
+  }
   switch (currentPhase) {
     case Phase::RECONCILING_TASKS:
     case Phase::BOOTSTRAP_MON:
@@ -282,14 +294,14 @@ void StateMachine::addConfig(string hostname)
   }
 }
 
-HostConfig StateMachine::getConfig(string hostname)
+HostConfig* StateMachine::getConfig(string hostname)
 {
   auto it = hostConfigMap.find(hostname);
   if (it != hostConfigMap.end()) {
-    HostConfig hc = hostConfigMap[hostname];
+    HostConfig* hc = &hostConfigMap[hostname];
     return hc; 
   } else {
-    return defaultHostConfig;
+    return &defaultHostConfig;
   }
 }
 

@@ -192,14 +192,17 @@ string CephExecutor::constructOSDCommand(
   string local_config_dir = localMountDir + "/etc/ceph";
   string local_fs_dir = localMountDir + "/var/lib/ceph";
   string osdid_dir_name = "ceph-" + osdId;
+  string jnlid_dir_name = "jnl-" + osdId;
   string docker_start_cmd = "docker run --rm --net=none --privileged --name " +
       _containerName;
-  string docker_env_param = " -e HOSTNAME=" + myHostname;
+  string docker_env_param = " -e HOSTNAME=" + myHostname +
+      " -e JOURNAL_DIR=/var/lib/ceph/osd/journal";
   string docker_new_entrypoint = " --entrypoint=/root/wfn.sh";
   //TODO: mount /etc/localtime means sync time with localhost, need at least Docker v1.6.2
   string docker_volume_param = " -v " + local_config_dir +
       ":/etc/ceph:rw" + " -v " + local_fs_dir + "/osd/" + osdid_dir_name +
       ":/var/lib/ceph/osd/" + osdid_dir_name + ":rw" +
+      " -v " + local_fs_dir + "/osd/" + jnlid_dir_name + ":/var/lib/ceph/osd/journal" + ":rw" +
       + " -v " + local_wfn_dir + ":/root ";
   string docker_new_entrypoint_param = " -e=/sbin/my_init -n=eth-"+_containerName;
   string docker_command;
@@ -419,58 +422,31 @@ bool CephExecutor::parseHostConfig(TaskInfo taskinfo)
 
 bool CephExecutor::prepareDisks()
 {
+  //create the osd mount dir
+  string cmd = "mkdir -p " + localMountOSDDir;
+  runShellCommand(cmd);
+  //create the jnl mount dir
+  cmd = "mkdir -p " + localMountJNLDir;
+  runShellCommand(cmd);
+  bool r;
   if ("" == osddisk) {
-    LOG(INFO) << "No osd disk given, use system disk";
-    return true;
+    LOG(INFO) << "No osd disk given, use system disk for osd";
   } else {
-    if (!partitionDisk(osddisk, 1)) {
-      return false;
-    }
-    string diskpath = "/dev/" + osddisk + "1";
-    if (!mkfsDisk(diskpath, fsType, mkfsFLAGS)) {
-      return false;
-    }
-    //create the mount dir
-    string cmd = "mkdir -p " + localMountOSDDir;
-    runShellCommand(cmd);
-    if (!mountDisk(diskpath, localMountOSDDir, mountFLAGS)) {
+    r = mountDisk("/dev/" + osddisk, localMountOSDDir, mountFLAGS);
+    if (!r) {
+      LOG(INFO) << "Mount osd disk failed!";
       return false;
     }
   }
-  //TODO: journal disk management
-  return true;
-}
-
-bool CephExecutor::partitionDisk(string diskname, int partitionCount)
-{
-  string diskpath = "/dev/" + diskname;
-  string cmd = "dd if=/dev/zero of=" + diskpath +
-      " bs=4M count=1 oflag=direct 2>/dev/null;echo $?";
-  LOG(INFO) << "dd..( "<<cmd<<" )";
-  runShellCommand(cmd);
-  LOG(INFO)<<"dd done.";
-  cmd = "parted " + diskpath + "  mklabel gpt &>/dev/null 2>/dev/null";
-  LOG(INFO) << "parted mklabel..( "<<cmd<<" )";
-  runShellCommand(cmd);
-  LOG(INFO)<<"parted mklabel done.";
-  cmd = "parted " + diskpath + " p 2>/dev/null | grep \"Disk " +
-      diskpath + "\" | awk '{print $3}'";
-  LOG(INFO) << "get disk size..( "<<cmd<<" )";
-  string disksize = runShellCommand(cmd);
-  LOG(INFO)<<"disksize: "<<disksize;
-  //TODO: support multiple partitions
-  cmd = "parted "+diskpath+" mkpart data 1 " + disksize +
-      " &>/dev/null 2>/dev/null";
-  LOG(INFO) << "parted mkpart..( "<<cmd<<" )";
-  runShellCommand(cmd);
-  return true;
-}
-
-bool CephExecutor::mkfsDisk(string diskname, string type, string flags)
-{
-  string cmd = "mkfs." + type + flags + " " + diskname;
-  LOG(INFO) << "mkfs..( "<<cmd<<" )";
-  runShellCommand(cmd);
+  if ("" == jnldisk) {
+    LOG(INFO) << "No jnl disk given, use system disk for journal";
+  } else {
+    r = mountDisk("/dev/" + jnldisk, localMountJNLDir, mountFLAGS);
+    if (!r) {
+      LOG(INFO) << "Mount jnl disk failed!";
+      return false;
+    }
+  }
   return true;
 }
 
@@ -509,6 +485,8 @@ void CephExecutor::frameworkMessage(ExecutorDriver* driver, const string& data)
             "/" + localConfigDirName;
         localMountOSDDir = localMountDir +
             "/var/lib/ceph/osd/ceph-" + tokens[1];
+        localMountJNLDir = localMountDir +
+            "/var/lib/ceph/osd/jnl-" + tokens[1];
         TaskStatus status;
         status.mutable_task_id()->MergeFrom(myTaskId);
         //prepareOSDdisk and JournalDisk
@@ -572,6 +550,10 @@ void CephExecutor::shutdown(ExecutorDriver* driver)
   if ("" != localMountOSDDir) {
     LOG(INFO) << "Umount( "<<localMountOSDDir<<" )";
     LOG(INFO) << runShellCommand("umount -f " + localMountOSDDir);
+  }
+  if ("" != localMountJNLDir) {
+    LOG(INFO) << "Umount( "<<localMountJNLDir<<" )";
+    LOG(INFO) << runShellCommand("umount -f " + localMountJNLDir);
   }
   LOG(INFO) << "Killing this container process";
   LOG(INFO) << runShellCommand("docker rm -f " + containerName);
