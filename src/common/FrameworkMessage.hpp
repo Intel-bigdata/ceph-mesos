@@ -22,7 +22,8 @@
 enum class MessageToScheduler : int
 {
   WAITING_FOR_OSD_NUM = 0,
-  CONSUMED_OSD_ID
+  CONSUMED_OSD_ID,
+  DISK_READY
 };
 
 enum class MessageToExecutor : int
@@ -41,6 +42,8 @@ public:
   static constexpr const char* osddevsKey = "osddevs";
 
   static constexpr const char* jnldevsKey = "jnldevs";
+
+  static constexpr const char* jnlPartitionCountKey = "jnlpartitioncount";
 
 };
 

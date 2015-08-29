@@ -116,6 +116,10 @@ set(CEPH_MESOS_EXECUTOR_SOURCES
     src/httpserver/FileServer.cpp
 )
 
+set(CEPH_MESOS_DISK_EXECUTOR_SOURCES
+    src/executor/DiskExecutor.cpp
+)
+
 set(CEPH_MESOS_TEST_SOURCES
     src/tests/main.cpp
     src/tests/ConfigTest.cpp
@@ -160,6 +164,16 @@ target_include_directories(ceph-mesos-executor PUBLIC
 target_link_libraries(ceph-mesos-executor
     ${MESOS_LIB}
     ${MICROHTTPD_LIB}
+)
+
+add_executable(ceph-mesos-disk-executor ${CEPH_MESOS_DISK_EXECUTOR_SOURCES})
+target_include_directories(ceph-mesos-disk-executor PUBLIC
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(ceph-mesos-disk-executor
+    ${MESOS_LIB}
 )
 
 add_executable(ceph-mesos-tests ${CEPH_MESOS_TEST_SOURCES})
