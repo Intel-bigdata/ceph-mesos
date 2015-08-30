@@ -376,13 +376,6 @@ string CephSchedulerAgent<T>::createExecutor(
   CommandInfo::URI* uri = executor.mutable_command()->add_uris();
   uri->set_value(binary_uri);
   uri->set_executable(true);
-  //give "wfn.sh" to executor for waiting container NIC ready
-  string wfn_uri = "http://"+ getFileServerIP() + ":" +
-      lexical_cast<string>(config->fileport) +
-      "/wfn.sh";
-  uri = executor.mutable_command()->add_uris();
-  uri->set_value(wfn_uri);
-  uri->set_executable(true);
   //config files:
   //ceph.client.admin.keyring
   //ceph.conf
