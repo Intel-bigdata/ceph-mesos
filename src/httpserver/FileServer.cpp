@@ -101,5 +101,5 @@ int fileServer(const int port, const std::string & _path )
   if (!daemon) {
     return 1;
   }
-  while (1);
+  while (1){usleep(3*1000000);};
 }

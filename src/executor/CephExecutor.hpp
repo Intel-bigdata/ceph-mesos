@@ -60,7 +60,7 @@ private:
 
   bool createLocalSharedConfigDir(string localSharedConfigDir);
 
-  bool copySharedConfigFiles(string localSharedConfigDir);
+  bool copySharedConfigFiles();
 
   string getContainerName(string taskId);
 
@@ -90,6 +90,8 @@ private:
   bool prepareDisks();
 
   bool mountDisk(string diskname, string dir, string flags);
+
+  string getPublicNetworkIP(string ips, string CIDR);
 
   string containerName;
 

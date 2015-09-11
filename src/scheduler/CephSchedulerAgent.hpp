@@ -387,7 +387,10 @@ string CephSchedulerAgent<T>::createExecutor(
     string configUriClientKeyring = prefix + "ceph.client.admin.keyring";
     string configUriCephConf = prefix + "ceph.conf";
     string configUriMonKeyring = prefix + "ceph.mon.keyring";
-    string configMonMap = prefix + "monmap";
+    string configUriMonMap = prefix + "monmap";
+    string configUriOSDKeyring = prefix + "ceph.keyring.osd";
+    string configUriRGWKeyring = prefix + "ceph.keyring.rgw";
+    string configUriMDSKeyring = prefix + "ceph.keyring.mds";
     uri = executor.mutable_command()->add_uris();
     uri->set_value(configUriClientKeyring);
     uri = executor.mutable_command()->add_uris();
@@ -395,7 +398,13 @@ string CephSchedulerAgent<T>::createExecutor(
     uri = executor.mutable_command()->add_uris();
     uri->set_value(configUriMonKeyring);
     uri = executor.mutable_command()->add_uris();
-    uri->set_value(configMonMap);
+    uri->set_value(configUriMonMap);
+    uri = executor.mutable_command()->add_uris();
+    uri->set_value(configUriOSDKeyring);
+    uri = executor.mutable_command()->add_uris();
+    uri->set_value(configUriRGWKeyring);
+    uri = executor.mutable_command()->add_uris();
+    uri->set_value(configUriMDSKeyring);
   }
   executor.mutable_command()->set_value(
       "./" + executorName);

@@ -21,8 +21,10 @@
 
 #include <sstream>
 #include <vector>
+#include <boost/lexical_cast.hpp>
 
 using std::vector;
+using boost::lexical_cast;
 
 class StringUtil
 {
@@ -47,6 +49,20 @@ public:
         r.push_back(pc);
     }
     return r;
+  }
+  static bool matchIPToCIDR(string ip, string CIDR)
+  {
+    vector<string> ipTokens = explode(ip, '.');
+    vector<string> tmpTokens = explode(CIDR, '/');
+    string subnet = tmpTokens[0];
+    vector<string> subnetTokens = explode(subnet, '.');
+    int netmaskLength = lexical_cast<int>(tmpTokens[1]);
+    for (int i = 0; i < netmaskLength/8; i++) {
+      if (ipTokens[i] != subnetTokens[i]) {
+        return false;
+      }
+    }
+    return true;
   }
 };
 #endif

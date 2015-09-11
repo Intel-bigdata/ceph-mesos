@@ -47,6 +47,7 @@ void EventLoop::recvData()
       if (flexUpMQ.try_receive(&event_data, sizeof(event_data), recvd_size, priority)){
           processData(string(event_data));
       }
+      usleep(3*1000000);
     }
   } catch (const std::exception& e){
     LOG(INFO) << "EventLoop.recvData " << e.what();
