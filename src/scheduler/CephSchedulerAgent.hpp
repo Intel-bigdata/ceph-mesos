@@ -233,8 +233,7 @@ void CephSchedulerAgent<T>::statusUpdate(
           vector<string> devs = StringUtil::explode(failedDevs[1], ',');
         }
         HostConfig* hostconfig = stateMachine->getConfig(hostname);
-        //TODO: get this "4" from yml config
-        hostconfig->updateDiskPartition(devs,lexical_cast<int>("4"));
+        hostconfig->updateDiskPartition(devs,hostconfig->getJnlPartitionCount());
         hostconfig->setDiskPreparationDone();
       }
     }
@@ -661,10 +660,9 @@ void CephSchedulerAgent<T>::tryLaunchDiskTask(
     one_label->set_value((*pendingJNLDevs)[i]);
   }
   // jnl partition count
-  //TODO: get this jnl partition count from yml file
   Label* one_label = labels.add_labels();
   one_label->set_key(CustomData::jnlPartitionCountKey);
-  one_label->set_value("4");
+  one_label->set_value(lexical_cast<string>(hostconfig->getJnlPartitionCount()));
   task.mutable_labels()->MergeFrom(labels);
   //reousrces
   Resource* resource;

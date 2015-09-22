@@ -36,6 +36,7 @@ DEFINE_string(master, "", "Mesos master uri");
 DEFINE_string(zookeeper, "", "Zookeeper uri");
 DEFINE_int32(restport, 0, "The REST API server port");
 DEFINE_int32(fileport, 0, "The static file server port");
+DEFINE_int32(jnlparts, 4, "The partition count of journal device");
 DEFINE_string(fileroot, "", "The static file server rootdir");
 
 Config* get_config(int* argc, char*** argv)
@@ -57,6 +58,7 @@ Config* get_config(int* argc, char*** argv)
       config->datadev,
       config->osddevs,
       config->jnldevs,
+      (FLAGS_jnlparts == 4 ? config->jnlparts : FLAGS_jnlparts)
   };
   if (cfg.id.empty() ||
     cfg.role.empty() ||
@@ -142,6 +144,7 @@ Config* parse_config_string(string input)
       (config["datadev"] ? config["datadev"].as<string>() : empty_s),
       (config["osddevs"] ? config["osddevs"].as<vector<string>>() : empty_v),
       (config["jnldevs"] ? config["jnldevs"].as<vector<string>>() : empty_v),
+      (config["jnlparts"] ? config["jnlparts"].as<int>() : FLAGS_jnlparts)
   };
   Config* cfg_p = new Config(cfg);
   return cfg_p;
@@ -161,6 +164,7 @@ Config* merge_config(Config* defaultConfig, Config* hostConfig)
       (hostConfig->datadev.empty() ? defaultConfig->datadev : hostConfig->datadev),
       (hostConfig->osddevs.empty() ? defaultConfig->osddevs : hostConfig->osddevs),
       (hostConfig->jnldevs.empty() ? defaultConfig->jnldevs : hostConfig->jnldevs),
+      (hostConfig->jnlparts == 4 ? defaultConfig->jnlparts : hostConfig->jnlparts),
   };
   Config* config_p = new Config(config);
   free(defaultConfig);

@@ -11,7 +11,7 @@ Scaling and monitoring large Ceph cluster in production Mesos environment in an 
 - [x] Multiple OSDs on one disk
 - [x] Multiple OSDs on dedicated disks
 - [x] Journals on dedicated disks
-- [ ] Public and cluster network
+- [x] Public and cluster network
 - [ ] Flexdown OSD
 - [ ] Launch RBD, MDS
 - [ ] TBD
@@ -80,7 +80,7 @@ Ceph-Mesos needs to know which disks are avlaible for OSD launching. Here comes 
 
 For instance, assume we have 5 slaves. 4 of them have same one disk "sdb" when execute "fdisk -l", but slave5 have another "sdc". So we need to create a cephmesos.d/slave5.yml which have addition "sdc" in field "osddevs". In this situation, Ceph-Mesos can use "sdc" to launch containers in slave5, but others only have "sdb".
 
-And you must populate the id, role and master field, can leave other field default. Sample configurations are as follows:
+And you must populate the id, role, master, mgmtdev and datadev field, can leave other field default. Sample configurations are as follows:
 
 cephmesos.yml:
 ```sh
@@ -91,18 +91,26 @@ zookeeper:  ""
 restport:   8889
 fileport:   8888
 fileroot:   ./
-mgmtdev:    ""
-datadev:    ""
+mgmtdev:    "192.168.0.0/16" #public network CIDR
+datadev:    "10.1.0.0/16"    #cluster network CIDR
 osddevs:
   - sdb
-jnldevs:    []
+  - sdc
+jnldevs:
+  - sde
+jnlparts:   2                #all jnldevs will be parted to 2 partitions for OSDs to use
 ```
 cephmesos.d/slave5.yml:
 ```sh
 osddevs:
+  - sdb
   - sdc
-jnldevs:    []
+  - sdd
+jnldevs:
+  - sde
+jnlparts:   3
 ```
+Above sample configurations will indicate ceph-mesos to deploy a ceph cluster on Mesos salves which have role "ceph". The cluster will have public network CIDR "192.168.0.0/16" and cluster network CIDR "10.1.0.0/16". And slave5 will make 3 journal partitions on sde for [sdb-d] to use when launching OSD( for instance, one OSD's data on sdb1 with journal sde3; Another OSD will use sdc1 and sde2 ). But the other slaves will make 2 journal partitions on sde for [sdb-c].
 
 After finishing all these configurations, we can start ceph-mesos using below command:
 ```sh
@@ -129,5 +137,8 @@ docker exec osd0 ceph -s
 ```
 Now you can verify your Ceph cluster!
 
+Performance
+--------------------------
+We have done some basic performance testing using fio. Comparing with physical ceph cluster, Ceph-Meosos shows no performance lost and sometimes even better( we are digging into why it's better ).
 
 [ceph-docker]: https://github.com/ceph/ceph-docker

@@ -41,6 +41,7 @@ public:
     originalConfig = get_config_by_hostname(hostname);
     pendingOSDDevs = originalConfig->osddevs;
     pendingJNLDevs = originalConfig->jnldevs;
+    jnlPartsCount = originalConfig->jnlparts;
   }
 
   HostConfig(Config* _config)
@@ -209,6 +210,11 @@ public:
     doneDiskPreparationFlag = true;
   }
 
+  int getJnlPartitionCount()
+  {
+    return jnlPartsCount;
+  }
+
 private:
 
   bool doneDiskPreparationFlag = false;
@@ -218,6 +224,8 @@ private:
   vector<string> pendingOSDDevs;
 
   vector<string> pendingJNLDevs;
+
+  int jnlPartsCount;
 
   vector<string> failedOSDDevs;
 

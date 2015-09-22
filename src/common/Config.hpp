@@ -37,6 +37,7 @@ struct Config
   std::string datadev;
   std::vector <std::string> osddevs;
   std::vector <std::string> jnldevs;
+  int jnlparts;
 };
 
 Config* get_config(int* argc, char*** argv);
