@@ -233,8 +233,7 @@ void CephSchedulerAgent<T>::statusUpdate(
           vector<string> devs = StringUtil::explode(failedDevs[1], ',');
         }
         HostConfig* hostconfig = stateMachine->getConfig(hostname);
-        //TODO: get this "4" from yml config
-        hostconfig->updateDiskPartition(devs,lexical_cast<int>("4"));
+        hostconfig->updateDiskPartition(devs,hostconfig->getJnlPartitionCount());
         hostconfig->setDiskPreparationDone();
       }
     }
@@ -387,7 +386,10 @@ string CephSchedulerAgent<T>::createExecutor(
     string configUriClientKeyring = prefix + "ceph.client.admin.keyring";
     string configUriCephConf = prefix + "ceph.conf";
     string configUriMonKeyring = prefix + "ceph.mon.keyring";
-    string configMonMap = prefix + "monmap";
+    string configUriMonMap = prefix + "monmap";
+    string configUriOSDKeyring = prefix + "ceph.keyring.osd";
+    string configUriRGWKeyring = prefix + "ceph.keyring.rgw";
+    string configUriMDSKeyring = prefix + "ceph.keyring.mds";
     uri = executor.mutable_command()->add_uris();
     uri->set_value(configUriClientKeyring);
     uri = executor.mutable_command()->add_uris();
@@ -395,7 +397,13 @@ string CephSchedulerAgent<T>::createExecutor(
     uri = executor.mutable_command()->add_uris();
     uri->set_value(configUriMonKeyring);
     uri = executor.mutable_command()->add_uris();
-    uri->set_value(configMonMap);
+    uri->set_value(configUriMonMap);
+    uri = executor.mutable_command()->add_uris();
+    uri->set_value(configUriOSDKeyring);
+    uri = executor.mutable_command()->add_uris();
+    uri->set_value(configUriRGWKeyring);
+    uri = executor.mutable_command()->add_uris();
+    uri->set_value(configUriMDSKeyring);
   }
   executor.mutable_command()->set_value(
       "./" + executorName);
@@ -652,10 +660,9 @@ void CephSchedulerAgent<T>::tryLaunchDiskTask(
     one_label->set_value((*pendingJNLDevs)[i]);
   }
   // jnl partition count
-  //TODO: get this jnl partition count from yml file
   Label* one_label = labels.add_labels();
   one_label->set_key(CustomData::jnlPartitionCountKey);
-  one_label->set_value("4");
+  one_label->set_value(lexical_cast<string>(hostconfig->getJnlPartitionCount()));
   task.mutable_labels()->MergeFrom(labels);
   //reousrces
   Resource* resource;

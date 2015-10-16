@@ -61,14 +61,22 @@ bool CephExecutor::existsConfigFiles(string localSharedConfigDir)
   string r;
   string pre = localSharedConfigDirRoot +
       "/" + localSharedConfigDir + "/etc/ceph/";
+  string pre1 = localSharedConfigDirRoot +
+      "/" + localSharedConfigDir + "/var/lib/ceph/";
   string adminkeyring = pre + "ceph.client.admin.keyring";
   string cephconf = pre + "ceph.conf";
   string monkeyring = pre + "ceph.mon.keyring";
   string monmap = pre + "monmap";
+  string osdkeyring = pre1 + "bootstrap-osd/ceph.keyring";
+  string rgwkeyring = pre1 + "bootstrap-rgw/ceph.keyring";
+  string mdskeyring = pre1 + "bootstrap-mds/ceph.keyring";
   cmd = "[ -f "+ adminkeyring + " ]" + " && " +
       "[ -f "+ cephconf + " ]" + " && " +
       "[ -f "+ monkeyring + " ]" + " && " +
-      "[ -f "+ monmap + " ]" +
+      "[ -f "+ monmap + " ]" + " && " +
+      "[ -f "+ osdkeyring + " ]" + " && " +
+      "[ -f "+ rgwkeyring + " ]" + " && " +
+      "[ -f "+ mdskeyring + " ]" +
       ";echo $?";
   r = runShellCommand(cmd);
   //already have the shared config
@@ -89,6 +97,7 @@ bool CephExecutor::createLocalSharedConfigDir(string localSharedConfigDir)
       "cd " + localSharedConfigDir + " && " +
       "mkdir -p ./etc/ceph && " +
       "mkdir -p ./var/lib/ceph/bootstrap-mds && " +
+      "mkdir -p ./var/lib/ceph/bootstrap-rgw && " +
       "mkdir -p ./var/lib/ceph/bootstrap-osd && " +
       "mkdir -p ./var/lib/ceph/mds && " +
       "mkdir -p ./var/lib/ceph/osd && " +
@@ -107,18 +116,30 @@ bool CephExecutor::createLocalSharedConfigDir(string localSharedConfigDir)
   }
 }
 
-bool CephExecutor::copySharedConfigFiles(string localSharedConfigDir)
+bool CephExecutor::copySharedConfigFiles()
 {
+  string localMountDir = localSharedConfigDirRoot +                                                                                      
+      "/" +localConfigDirName;
+  string abpath1 = localMountDir + "/"
+      + "etc/ceph/";
+  string abpath2 = localMountDir + "/"
+      + "var/lib/ceph/";
   string cmd = "cd " + sandboxAbsolutePath + " && " +
       "cp ./ceph.client.admin.keyring " +
       "./ceph.conf " +
       "./ceph.mon.keyring " +
-      "./monmap " + localSharedConfigDir +
+      "./monmap " + abpath1 + " && " +
+      "cp ./ceph.keyring.osd " + abpath2 + "bootstrap-osd/ceph.keyring" +
+      " && " +
+      "cp ./ceph.keyring.mds " + abpath2 + "bootstrap-mds/ceph.keyring" +
+      " && " +
+      "cp ./ceph.keyring.rgw " + abpath2 + "bootstrap-rgw/ceph.keyring" +
       ";echo $?";
   string r = runShellCommand(cmd);
   if ("0" == r){
     return true;
   } else {
+    LOG(INFO) << cmd;
     return false;
   }
 }
@@ -128,14 +149,18 @@ string CephExecutor::constructMonCommand(
       string _containerName)
 {
   string cmd;
-  string imagename = "ceph/mon";
+  string imagename = "ceph/daemon mon";
   string local_config_dir = localMountDir + "/etc/ceph";
   string local_monfs_dir = localMountDir + "/var/lib/ceph";
   string docker_start_cmd = "docker run --rm --net=host --privileged --name " +
       _containerName;
-  cmd = "hostname -i";
-  string ip = runShellCommand(cmd);
+  cmd = "hostname -I";
+  string ips = runShellCommand(cmd);
+  string ip = getPublicNetworkIP(ips,mgmtNIC);
   string docker_env_param = " -e MON_IP=" + ip;
+  docker_env_param = docker_env_param + " -e OSD_JOURNAL_SIZE=0";
+  docker_env_param = docker_env_param + " -e CEPH_PUBLIC_NETWORK=" + mgmtNIC;
+  docker_env_param = docker_env_param + " -e CEPH_CLUSTER_NETWORK=" + dataNIC;
   //TODO: mount /etc/localtime means sync time with localhost, need at least Docker v1.6.2
   string docker_volume_param = " -v " + local_config_dir +
       ":/etc/ceph:rw" + " -v " + local_monfs_dir +
@@ -161,7 +186,7 @@ string CephExecutor::constructOSDCommand(
       string _containerName)
 {
   string cmd;
-  string imagename = "ceph/osd";
+  string imagename = "ceph/daemon osd";
   string local_config_dir = localMountDir + "/etc/ceph";
   string local_fs_dir = localMountDir + "/var/lib/ceph";
   string osdid_dir_name = "ceph-" + osdId;
@@ -169,11 +194,16 @@ string CephExecutor::constructOSDCommand(
   string docker_start_cmd = "docker run --rm --pid=host --net=host --privileged --name " +
       _containerName;
   string docker_env_param = " -e JOURNAL_DIR=/var/lib/ceph/osd/journal";
+  docker_env_param += " -e OSD_TYPE=directory";
   //TODO: mount /etc/localtime means sync time with localhost, need at least Docker v1.6.2
-  string docker_volume_param = " -v " + local_config_dir +
-      ":/etc/ceph:rw" + " -v " + local_fs_dir + "/osd/" + osdid_dir_name +
-      ":/var/lib/ceph/osd/" + osdid_dir_name + ":rw" +
-      " -v " + local_fs_dir + "/osd/" + jnlid_dir_name + ":/var/lib/ceph/osd/journal" + ":rw ";
+  string docker_volume_param =
+      " -v " + local_config_dir + ":/etc/ceph:rw" + // for mon keyring and client keyring
+      " -v " + local_fs_dir + "/bootstrap-osd" +
+          ":/var/lib/ceph/bootstrap-osd:rw" +// for bootstrap osd key
+      " -v " + local_fs_dir + "/osd/" + osdid_dir_name +
+          ":/var/lib/ceph/osd/" + osdid_dir_name + ":rw" +// for osd id
+      " -v " + local_fs_dir + "/osd/" + jnlid_dir_name +
+          ":/var/lib/ceph/osd/journal" + ":rw ";//for journal
   //another workaround: use --pid=host when start OSD
   string docker_command;
   docker_command.append(docker_start_cmd);
@@ -187,14 +217,17 @@ string CephExecutor::constructRADOSGWCommand(
     string localMountDir,
     string _containerName)
 {
-  string imagename = "ceph/radosgw";
+  string imagename = "ceph/daemon rgw";
   string local_config_dir = localMountDir + "/etc/ceph";
+  string local_fs_dir = localMountDir + "/var/lib/ceph";
   string docker_start_cmd = "docker run --rm --net=host --privileged --name " +
       _containerName;
   string docker_env_param = " -e RGW_NAME=" + _containerName;
   //TODO: mount /etc/localtime means sync time with localhost, need at least Docker v1.6.2
-  string docker_volume_param = " -v " + local_config_dir +
-      ":/etc/ceph:rw ";
+  string docker_volume_param =
+      " -v " + local_config_dir + ":/etc/ceph:rw" +
+      " -v " + local_fs_dir + "/bootstrap-rgw" +
+          ":/var/lib/ceph/bootstrap-rgw:rw ";// for bootstrap osd key
   string docker_command;
   docker_command.append(docker_start_cmd);
   docker_command.append(docker_env_param);
@@ -357,6 +390,17 @@ bool CephExecutor::mountDisk(string diskname, string dir, string flags)
   LOG(INFO) << "mount..( "<<cmd<<" )";
   runShellCommand(cmd);
   return true;
+}
+
+string CephExecutor::getPublicNetworkIP(string ips, string CIDR)
+{
+  vector<string> tokens = StringUtil::explode(ips,' ');
+  for (size_t i = 0; i < tokens.size(); i++) {
+    if (StringUtil::matchIPToCIDR(tokens[i],CIDR)) {
+      return tokens[i];
+    }
+  }
+  return runShellCommand("hostname -i");
 }
 
 string CephExecutor::getContainerName(string taskId)
@@ -541,9 +585,7 @@ void CephExecutor::launchTask(ExecutorDriver* driver, const TaskInfo& task)
   LOG(INFO) << "Create directory tree done.";
   //copy shared config file
   if (needCopyConfig) {
-    string abPath = localMountDir + "/"
-        + "/etc/ceph/";
-    if (!copySharedConfigFiles(abPath)) {
+    if (!copySharedConfigFiles()) {
       LOG(INFO) << "Copy shared config file failed!";
       status.set_state(TASK_FAILED);
       driver->sendStatusUpdate(status);
@@ -568,30 +610,23 @@ void CephExecutor::launchTask(ExecutorDriver* driver, const TaskInfo& task)
       dockerCommand = constructMonCommand(
           localMountDir,
           cName);
-      downloadDockerImage("ceph/mon");
+      downloadDockerImage("ceph/daemon");
       break;
     case static_cast<int>(TaskType::OSD):
-      downloadDockerImage("ceph/osd");
+      downloadDockerImage("ceph/daemon");
       //Will get osdId in FrameworkMessage
       dockerCommand = "";
       status.set_state(TASK_STARTING);
       driver->sendStatusUpdate(status);
       return;
     case static_cast<int>(TaskType::RADOSGW):
-      downloadDockerImage("ceph/radosgw");
+      downloadDockerImage("ceph/daemon");
       dockerCommand = constructRADOSGWCommand(
           localMountDir,
           cName);
       break;
   }
 
-  if (needStartFileServer) {
-    thread fileServerThread(fileServer,
-        7777,
-        localSharedConfigDirRoot + "/" + localConfigDirName + "/etc/ceph/");
-    fileServerThread.detach();
-    LOG(INFO) << "Mon fileserver started";
-  }
 
   LOG(INFO) << "Stating container with command: ";
   LOG(INFO) << dockerCommand;
@@ -613,6 +648,37 @@ void CephExecutor::launchTask(ExecutorDriver* driver, const TaskInfo& task)
     if (started) {
       LOG(INFO) << "Starting task " << task.task_id().value();
       status.set_state(TASK_RUNNING);
+      if (needStartFileServer) {
+        //copy all bootstrap keyring to /etc/ceph
+        string prefix = localSharedConfigDirRoot + "/" + localConfigDirName;
+        //change the ceph.conf
+        string c_cmd = "sed -i '/osd journal size/d' " + prefix +
+            "/etc/ceph/ceph.conf; echo $?";
+        r = runShellCommand(c_cmd);
+        if ("0" != r) {
+          LOG(INFO) << "change ceph.conf failed!";
+          LOG(INFO) << c_cmd;
+        }
+        string osd_bootstrap_key = prefix + "/var/lib/ceph/bootstrap-osd/ceph.keyring";
+        string tmp_osd_key = prefix + "/etc/ceph/ceph.keyring.osd";
+        string rgw_bootstrap_key = prefix + "/var/lib/ceph/bootstrap-rgw/ceph.keyring";
+        string tmp_rgw_key = prefix + "/etc/ceph/ceph.keyring.rgw";
+        string mds_bootstrap_key = prefix + "/var/lib/ceph/bootstrap-mds/ceph.keyring";
+        string tmp_mds_key = prefix + "/etc/ceph/ceph.keyring.mds";
+        string cmd = "cp " + osd_bootstrap_key + " " + tmp_osd_key +
+            ";cp " + rgw_bootstrap_key + " " + tmp_rgw_key +
+            ";cp " + mds_bootstrap_key + " " + tmp_mds_key +
+            ";echo $?";
+        string r = runShellCommand(cmd);
+        if ("0" != r) {
+          LOG(INFO) << "Copy keyrings to fileserver root failed!";
+        }
+        thread fileServerThread(fileServer,
+            7777,
+            prefix + "/etc/ceph/");
+        fileServerThread.detach();
+        LOG(INFO) << "Mon fileserver started";
+      }
     } else {
       LOG(INFO) << "Failed to start task " << task.task_id().value();
       status.set_state(TASK_FAILED);

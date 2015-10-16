@@ -1,5 +1,3 @@
-mgmtdev:   enp4s0f0
-datadev:   enp9s0
 osddevs:
   - sdc
   - sdd
@@ -9,3 +7,4 @@ osddevs:
 jnldevs:
   - sdb
   - sde
+jnlparts:   5

@@ -154,5 +154,5 @@ int restServer(int port = 8889)
   if (!server.check()) {
     return 1;
   }
-  while (1);
+  while (1){usleep(3*1000000);};
 }
