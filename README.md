@@ -76,7 +76,7 @@ Run Ceph-Mesos
 --------------------------
 Configure the cephmesos.yml and cephmesos.d/{hostname}.yml before you go if you want Ceph-Mesos to prepare the disks.
 
-Ceph-Mesos needs to know which disks are avlaible for OSD launching. Here comes cephmesos.yml and cephmesos.d/{hostname}.yml. Cephmesos.yml is for common subset settings of hosts and cephmesos.d/{hostname}.yml is particular settings of a dedicated host. Once the osddevs and jnldevs are populated, Ceph-Mesos will make partitions and filesystem on the disks and bind-mount them for OSD containers to use.
+Ceph-Mesos needs to know which disks are available for OSD launching. Here comes cephmesos.yml and cephmesos.d/{hostname}.yml. Cephmesos.yml is for common subset settings of hosts and cephmesos.d/{hostname}.yml is particular settings of a dedicated host. Once the osddevs and jnldevs are populated, Ceph-Mesos will make partitions and filesystem on the disks and bind-mount them for OSD containers to use.
 
 For instance, assume we have 5 slaves. 4 of them have same one disk "sdb" when execute "fdisk -l", but slave5 have another "sdc". So we need to create a cephmesos.d/slave5.yml which have addition "sdc" in field "osddevs". In this situation, Ceph-Mesos can use "sdc" to launch containers in slave5, but others only have "sdb".
 
