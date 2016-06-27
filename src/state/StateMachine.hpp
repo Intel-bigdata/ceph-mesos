@@ -85,9 +85,9 @@ public:
   HostConfig* getConfig(string hostname);
 
 private:
-  unordered_map<std::string, ceph::TaskState> taskMap;
+  boost::unordered_map<std::string, ceph::TaskState> taskMap;
 
-  unordered_map<std::string, ceph::HostConfig> hostConfigMap;
+  boost::unordered_map<std::string, ceph::HostConfig> hostConfigMap;
 
   vector<int> pendingOSDID;
 
