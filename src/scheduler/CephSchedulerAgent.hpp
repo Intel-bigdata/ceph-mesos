@@ -695,7 +695,9 @@ bool CephSchedulerAgent<T>::offerNotEnoughResources(const Offer& offer, TaskType
       "cpus:" + stringify(cpus) +
       ";mem:" + stringify(mems),config->role).get();
   Resources res = offer.resources();
-  if (res.flatten(config->role).contains(neededResources)) {
+  Resources resRole = res.flatten(config->role).get();
+  //if(res.contains(neededResources)){
+  if (resRole.contains(neededResources)) {
     return false;
   } else {
     return true;
